@@ -1,0 +1,17 @@
+id,name,acronym,url
+1,Declaration,DCL,https://samate.nist.gov/BF/Classes/_DAT/DCL.html
+2,Name Resolution,NRS,https://samate.nist.gov/BF/Classes/_DAT/NRS.html
+3,Type Conversion,TCV,https://samate.nist.gov/BF/Classes/_DAT/TCM.html
+4,Type Computation,TCM,https://samate.nist.gov/BF/Classes/_DAT/TCV.html
+5,Data Validaiton,DVL,https://samate.nist.gov/BF/Classes/_INP/DVL.html
+6,Data Verification,DVR,https://samate.nist.gov/BF/Classes/_INP/DVR.html
+7,Memory Addressing,MAD,https://samate.nist.gov/BF/Classes/_MEM/MAD.html
+8,Memory Allocation,MAL,https://samate.nist.gov/BF/Classes/_MEM/MAL.html
+9,Memory Use,MUS,https://samate.nist.gov/BF/Classes/_MEM/MUS.html
+10,Memory Deallocation,MDL,https://samate.nist.gov/BF/Classes/_MEM/MDL.html
+11,Encryption/Decryption,ENC,https://samate.nist.gov/BF/Classes/_CRY/ENC.html
+12,Key Management,KMN,https://samate.nist.gov/BF/Classes/_CRY/KMN.html
+13,Verification,VRF,https://samate.nist.gov/BF/Classes/_CRY/VRF.html
+14,Pseudo-Random Number,PRN,https://samate.nist.gov/BF/Classes/_RND/PRN.html
+15,True-Random Number,TRN,https://samate.nist.gov/BF/Classes/_RND/TRN.html
+16,None,None,
