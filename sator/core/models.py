@@ -311,7 +311,7 @@ class RepositoryTopic(db.Model):
     __tablename__ = 'repository_topic'
     __table_args__ = (
         db.PrimaryKeyConstraint('repository_id', 'topic_id'),
-    )
+    )   
 
     repository_id = db.Column('repository_id', db.String, db.ForeignKey('repository.id'))
     topic_id = db.Column('topic_id', db.String, db.ForeignKey('topic.id'))
@@ -323,13 +323,88 @@ class Vulnerability(db.Model):
     id = db.Column('id', db.String, primary_key=True)
     description = db.Column('description', db.String, nullable=True)
     assigner = db.Column('assigner', db.String, nullable=False)
-    severity = db.Column('severity', db.String, nullable=True)
-    exploitability = db.Column('exploitability', db.Float, nullable=True)
-    impact = db.Column('impact', db.Float, nullable=True)
+    # removed
+    # severity = db.Column('severity', db.String, nullable=True)
+    # exploitability = db.Column('exploitability', db.Float, nullable=True)
+    # impact = db.Column('impact', db.Float, nullable=True)
     published_date = db.Column('published_date', db.DateTime, nullable=False)
     last_modified_date = db.Column('last_modified_date', db.DateTime, nullable=False)
     references = db.relationship("Reference", backref="vulnerability")
     configurations = db.relationship("Configuration", backref="vulnerability")
+    vulnStatus = db.Column('vulnStatus', db.String, nullable=True)
+    cvss2 = db.relationship("CVSS2", backref="vulnerability")
+    cvss3 = db.relationship("CVSS3", backref="vulnerability")
+
+class VulnerabilityCVSS3(db.Model):
+    __tablename__ = 'vulnerability_cvss3'
+    __table_args__ = (
+        db.PrimaryKeyConstraint('vulnerability_id', 'cvss3_id'),
+    )
+
+    vulnerability_id = db.Column('vulnerability_id', db.String, db.ForeignKey('vulnerability.id'), primary_key=True)
+    cvss3_id = db.Column('cvss3_id', db.String, db.ForeignKey('cvss3.id'), primary_key=True)
+
+class CVSS3(db.Model):
+    __tablename__ = "cvss3"
+
+    id = db.Column(db.String, primary_key=True)
+    vulnerability_id = db.Column(db.String, db.ForeignKey('vulnerability.id'))
+    # cve_id = db.Column('cve_id', db.String)
+    source = db.Column('source', db.String, nullable=True)
+    type= db.Column('type', db.String, nullable=True)
+    cvssData= db.Column('cvssData', db.String, nullable=True)
+    exploitabilityScore= db.Column('exploitabilityScore', db.Float, nullable=True)
+    impactScore= db.Column('impactScore', db.Float, nullable=True)
+    cvssData_version = db.Column('cvssData_version', db.String, nullable=True)
+    cvssData_vectorString = db.Column('cvssData_vectorString', db.String, nullable=True)
+    cvssData_attackVector = db.Column('cvssData_attackVector', db.String, nullable=True)
+    cvssData_attackComplexity = db.Column('cvssData_attackComplexity', db.String, nullable=True)
+    cvssData_privilegesRequired = db.Column('cvssData_privilegesRequired', db.String, nullable=True)
+    cvssData_userInteraction = db.Column('cvssData_userInteraction', db.String, nullable=True)
+    cvssData_scope = db.Column('cvssData_scope', db.String, nullable=True)
+    cvssData_confidentialityImpact = db.Column('cvssData_confidentialityImpact', db.String, nullable=True)
+    cvssData_integrityImpact = db.Column('cvssData_integrityImpact', db.String, nullable=True)
+    cvssData_availabilityImpact = db.Column('cvssData_availabilityImpact', db.String, nullable=True)
+    cvssData_baseScore = db.Column('cvssData_baseScore', db.Float, nullable=True)
+    cvssData_baseSeverity = db.Column('cvssData_baseSeverity', db.String, nullable=True)
+
+class VulnerabilityCVSS2(db.Model):
+    __tablename__ = 'vulnerability_cvss2'
+    __table_args__ = (
+        db.PrimaryKeyConstraint('vulnerability_id', 'cvss2_id'),
+    )
+
+    vulnerability_id = db.Column('vulnerability_id', db.String, db.ForeignKey('vulnerability.id'), primary_key=True)
+    cvss2_id = db.Column('cvss2_id', db.String, db.ForeignKey('cvss2.id'), primary_key=True)
+
+
+class CVSS2(db.Model):
+    __tablename__ = "cvss2"
+
+    id = db.Column(db.String, primary_key=True)
+    vulnerability_id = db.Column(db.String, db.ForeignKey('vulnerability.id'))
+    # cve_id = db.Column('cve_id', db.String)
+    source = db.Column('source', db.String, nullable=True)
+    type = db.Column('type', db.String, nullable=True)
+    # CVSSv2 Specific Columns
+    cvssData_version = db.Column('cvssData_version', db.String, nullable=True)
+    cvssData_vectorString = db.Column('cvssData_vectorString', db.String, nullable=True)
+    cvssData_accessVector = db.Column('cvssData_accessVector', db.String, nullable=True)
+    cvssData_accessComplexity = db.Column('cvssData_accessComplexity', db.String, nullable=True)
+    cvssData_authentication = db.Column('cvssData_authentication', db.String, nullable=True)
+    cvssData_confidentialityImpact = db.Column('cvssData_confidentialityImpact', db.String, nullable=True)
+    cvssData_integrityImpact = db.Column('cvssData_integrityImpact', db.String, nullable=True)
+    cvssData_availabilityImpact = db.Column('cvssData_availabilityImpact', db.String, nullable=True)
+    cvssData_baseScore = db.Column('cvssData_baseScore', db.Float, nullable=True)
+    baseSeverity = db.Column('baseSeverity', db.String, nullable=True)
+    exploitabilityScore = db.Column('exploitabilityScore', db.Float, nullable=True)
+    impactScore = db.Column('impactScore', db.Float, nullable=True)
+    # Additional attributes
+    acInsufInfo = db.Column('acInsufInfo', db.Boolean, nullable=True)
+    obtainAllPrivilege = db.Column('obtainAllPrivilege', db.Boolean, nullable=True)
+    obtainUserPrivilege = db.Column('obtainUserPrivilege', db.Boolean, nullable=True)
+    obtainOtherPrivilege = db.Column('obtainOtherPrivilege', db.Boolean, nullable=True)
+    userInteractionRequired = db.Column('userInteractionRequired', db.Boolean, nullable=True)
 
 
 class VulnerabilityCWE(db.Model):
