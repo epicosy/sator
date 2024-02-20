@@ -9,7 +9,7 @@ from flask.ctx import AppContext
 from cpeparser import CpeParser
 
 from sator.core.exc import SatorError
-from sator.core.models import Vulnerability, db, Reference, VulnerabilityCWE, ReferenceTag, Repository, \
+from sator.core.models import CVSS2, CVSS3, Vulnerability, db, Reference, VulnerabilityCWE, ReferenceTag, Repository, \
     Commit, Configuration, ConfigurationVulnerability, Vendor, Product
 from sator.handlers.source import SourceHandler
 
@@ -61,11 +61,12 @@ class NVDHandler(SourceHandler):
     def _process_cve(self, cve_id: str, cve: dict):
         if not self.has_id(cve_id, 'vulns'):
             self.add_id(cve_id, 'vulns')
+
             db.session.add(Vulnerability(id=cve_id, description=self.get_description(cve),
-                                         assigner=self.get_assigner(cve), severity=self.get_severity(cve),
-                                         impact=self.get_impact(cve), exploitability=self.get_exploitability(cve),
+                                         assigner=self.get_assigner(cve),
                                          published_date=self.get_published_date(cve),
-                                         last_modified_date=self.get_last_modified_date(cve)))
+                                         last_modified_date=self.get_last_modified_date(cve),
+                                         vulnStatus = ""))
             db.session.commit()
 
             for cwe in self.get_cwe_ids(cve):
@@ -87,6 +88,7 @@ class NVDHandler(SourceHandler):
                 db.session.commit()
 
             if self.is_commit_reference(ref['url']):
+                
 
                 try:
                     normalized_commit = self.normalize_commit(ref['url'])
@@ -95,6 +97,7 @@ class NVDHandler(SourceHandler):
 
                     if not self.has_id(repo_digest, 'repos'):
                         self.add_id(repo_digest, 'repos')
+          
                         db.session.add(Repository(id=repo_digest, name=normalized_commit.repo,
                                                   owner=normalized_commit.owner))
                         db.session.commit()
@@ -151,7 +154,75 @@ class NVDHandler(SourceHandler):
                 if not self.has_id(config_vuln, 'config_vuln'):
                     db.session.add(ConfigurationVulnerability(configuration_id=config_digest, vulnerability_id=cve_id))
                     self.add_id(config_vuln, 'config_vuln')
+                    db.session.commit() 
+        
+
+        
+        if cve["impact"]:
+
+            metrics = cve["impact"]
+            if "baseMetricV3" in metrics:
+                base_metric_v3 = metrics["baseMetricV3"]
+                cvss_v3 = base_metric_v3["cvssV3"]  # Access the 'cvssV3' dictionary directly
+                cvss_v3_id = self.get_digest(json.dumps(cvss_v3))
+                # Create a CVSS3 instance with the extracted data
+                if not self.has_id(cvss_v3_id, 'cvss3'):
+                    self.add_id(cvss_v3_id, 'cvss3')
+                    cvss3_instance = CVSS3(
+                        id = cvss_v3_id,
+                        vulnerability_id=cve_id,
+                        # The original code incorrectly accessed 'source' and 'type' which aren't in the 'cvssV3' structure
+                        # Assuming 'source' and 'type' need to be handled differently or removed if not applicable
+                        exploitabilityScore=base_metric_v3['exploitabilityScore'],
+                        impactScore=base_metric_v3['impactScore'],
+                        cvssData_version=cvss_v3['version'],
+                        cvssData_vectorString=cvss_v3['vectorString'],
+                        cvssData_attackVector=cvss_v3['attackVector'],
+                        cvssData_attackComplexity=cvss_v3['attackComplexity'],
+                        cvssData_privilegesRequired=cvss_v3['privilegesRequired'],
+                        cvssData_userInteraction=cvss_v3['userInteraction'],
+                        cvssData_scope=cvss_v3['scope'],
+                        cvssData_confidentialityImpact=cvss_v3['confidentialityImpact'],
+                        cvssData_integrityImpact=cvss_v3['integrityImpact'],
+                        cvssData_availabilityImpact=cvss_v3['availabilityImpact'],
+                        cvssData_baseScore=cvss_v3['baseScore'],
+                        cvssData_baseSeverity=cvss_v3['baseSeverity']
+                    )
+                    db.session.add(cvss3_instance)
                     db.session.commit()
+
+
+
+            if "baseMetricV2" in metrics:
+                base_metric_v2 = metrics["baseMetricV2"]
+                cvss_v2 = base_metric_v2["cvssV2"]  # Direct access to the "cvssV2" dictionary
+                cvss_v2_id = self.get_digest(json.dumps(cvss_v2))
+                if not self.has_id(cvss_v2_id, 'cvss2'):
+                    self.add_id(cvss_v2_id, 'cvss2')
+                    cvss2_instance = CVSS2(
+                        id = cvss_v2_id,
+                        vulnerability_id=cve_id,
+                        cvssData_version=cvss_v2['version'],
+                        cvssData_vectorString=cvss_v2['vectorString'],
+                        cvssData_accessVector=cvss_v2['accessVector'],
+                        cvssData_accessComplexity=cvss_v2['accessComplexity'],
+                        cvssData_authentication=cvss_v2['authentication'],
+                        cvssData_confidentialityImpact=cvss_v2['confidentialityImpact'],
+                        cvssData_integrityImpact=cvss_v2['integrityImpact'],
+                        cvssData_availabilityImpact=cvss_v2['availabilityImpact'],
+                        cvssData_baseScore=cvss_v2['baseScore'],
+                        baseSeverity=base_metric_v2['severity'],
+                        exploitabilityScore=base_metric_v2['exploitabilityScore'],
+                        impactScore=base_metric_v2['impactScore'],
+                        acInsufInfo=base_metric_v2.get("acInsufInfo",False),
+                        obtainAllPrivilege=base_metric_v2['obtainAllPrivilege'],
+                        obtainUserPrivilege=base_metric_v2['obtainUserPrivilege'],
+                        obtainOtherPrivilege=base_metric_v2['obtainOtherPrivilege'],
+                        userInteractionRequired=base_metric_v2['userInteractionRequired']
+                    )
+                    db.session.add(cvss2_instance)
+                    db.session.commit()
+
 
     @staticmethod
     def parse_config(config: dict):
