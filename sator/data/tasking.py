@@ -100,4 +100,6 @@ class Runner:
     def done(self, task: Task):
         task.done()
         self.finished += [task]
-        del self.running[task.id]
+        #check if currently running
+        if task.id in self.running:
+            del self.running[task.id]

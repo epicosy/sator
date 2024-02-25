@@ -11,7 +11,7 @@ import requests
 from requests.exceptions import RequestException, HTTPError
 import traceback  
 from sator.core.exc import SatorError
-from sator.core.models import CVSS3, CVSS2, Vulnerability, db, Reference, VulnerabilityCWE, ReferenceTag, Repository, \
+from sator.core.models import CVSS3, CVSS2, Vulnerability, CVSS2Source, CVSS3Source, db, Reference, VulnerabilityCWE, ReferenceTag, Repository, \
     Commit, Configuration, ConfigurationVulnerability, Vendor, Product
 from sator.handlers.source import SourceHandler
 import time
@@ -43,7 +43,7 @@ class NVDAPIHandler(SourceHandler):
 
         # self.init_global_context()
         months = ['0'+str(i) for i in range(1,10)]+['10','11','12']
-        for year in (range(2000, 2024, 1)):
+        for year in (range(2020, 2024, 1)):
           for i in range(len(months)):
             month = months[i]
             if month == '12':
@@ -233,8 +233,8 @@ class NVDAPIHandler(SourceHandler):
                         self.add_id(cvss_v3_id, 'cvss3')
                         cvss3_instance = CVSS3(
                                     id = cvss_v3_id,
-                                    vulnerability_id = cve_id,
-                                    source=cvss_data['source'],
+                                    # vulnerability_id = cve_id,
+                                    # source=cvss_data['source'],
                                     type=cvss_data['type'],
                                     exploitabilityScore=cvss_data['exploitabilityScore'],
                                     impactScore=cvss_data['impactScore'],
@@ -251,6 +251,7 @@ class NVDAPIHandler(SourceHandler):
                                     cvssData_baseScore=cvss_data['cvssData']['baseScore'],
                                     cvssData_baseSeverity=cvss_data['cvssData']['baseSeverity']
                                 )
+                   
                         db.session.add(cvss3_instance)
                         db.session.commit()
 
@@ -262,8 +263,8 @@ class NVDAPIHandler(SourceHandler):
                         self.add_id(cvss_v2_id, 'cvss2')
                         cvss2_instance = CVSS2(
                                     id = cvss_v2_id,
-                                    vulnerability_id = cve_id,
-                                    source=cvss_data_v2['source'],
+                                    # vulnerability_id = cve_id,
+                                    # source=cvss_data_v2['source'],
                                     type=cvss_data_v2['type'],
                                     cvssData_version=cvss_data_v2['cvssData']['version'],
                                     cvssData_vectorString=cvss_data_v2['cvssData']['vectorString'],
