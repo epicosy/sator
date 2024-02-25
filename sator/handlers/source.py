@@ -15,7 +15,7 @@ from urllib.parse import urlparse
 
 from sator.core.exc import SatorError
 from sator.core.interfaces import HandlersInterface
-from sator.core.models import Tag, CWE, Vulnerability, Reference, Repository, Commit, Configuration, Product, Vendor, \
+from sator.core.models import Tag, CWE, CVSS2, CVSS3, Vulnerability, Reference, Repository, Commit, Configuration, Product, Vendor, \
     CommitFile, db, CommitParent, Topic, RepositoryTopic, ConfigurationVulnerability
 from sator.handlers.github import GithubHandler
 from sator.handlers.multi_task import MultiTaskHandler
@@ -79,6 +79,10 @@ class SourceHandler(HandlersInterface, Handler):
         self.db_ids['files'] = set([commit_file.id for commit_file in CommitFile.query.all()])
         self.app.log.info("Loading topics IDs...")
         self.db_ids['topics'] = set([topic.id for topic in Topic.query.all()])
+        self.app.log.info("Loading CVSS2 IDs...")
+        self.db_ids['cvss2'] = set([cvss.id for cvss in CVSS2.query.all()])
+        self.app.log.info("Loading CVSS3 IDs...")
+        self.db_ids['cvss3'] = set([cvss.id for cvss in CVSS3.query.all()])
 
     def has_id(self, _id: str, _type: str) -> bool:
         return _id in self.db_ids[_type]

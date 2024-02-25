@@ -20,15 +20,28 @@ import time
 # TODO: Get metrics for version 3.0
 
 
-class DataHandler(SourceHandler):
+class NVDAPIHandler(SourceHandler):
     class Meta:
-        label = 'data'
+        label = 'nvdapi'
 
     def __init__(self, **kw):
         super().__init__(**kw)
+    def send_request(self, **kwargs):
+        year = kwargs.get('year')
+        month = kwargs.get('month')
+        day = kwargs.get('day')
+        next_month = kwargs.get('next_month')
+        base_url = kwargs.get('base_url')
+        params = kwargs.get('params')   
+        print("requesting vulnerabilities from "+ str(year)+ "/"+ str(month)+"/"+day+"-"+str(next_month)+"/"+str(day))
+        response = requests.get(base_url, params=params)
+        response.raise_for_status()  # Raise an exception for HTTP errors
+        return response
 
     def run(self):
-        self.init_global_context()
+
+
+        # self.init_global_context()
         months = ['0'+str(i) for i in range(1,10)]+['10','11','12']
         for year in (range(2000, 2024, 1)):
           for i in range(len(months)):
@@ -46,27 +59,37 @@ class DataHandler(SourceHandler):
                 'pubEndDate': f'{year}-{next_month}-{day}T00:00:00.000'
             }
 
-            try:
-                print("requesting vulnerabilities from "+ str(year)+ "/"+ str(month)+"/"+day+"-"+str(next_month)+"/"+str(day))
-                response = requests.get(base_url, params=params)
-                response.raise_for_status()  # Raise an exception for HTTP errors
-                
+            # try:
+            self.multi_task_handler.add(base_url = base_url,params =params,year=year,month=month,day=day,next_month=next_month)
+        
+        self.multi_task_handler(func=self.send_request)
+        results = self.multi_task_handler.results()    
+        del self.multi_task_handler
+
+        self.init_global_context()
+
+        # parse json files into a single dataframe
+        for json_file in results:
+            self.multi_task_handler.add(json_file=json_file.json())
+
+        self.multi_task_handler(func=self.parse)
+        self.multi_task_handler.results()
                 # print("ok")
                 # print(year)
                 # print(month)
-                if response.json()["totalResults"] != 0:
-                    # print(response.json())
-                    self.parse(response.json())
+            #     if response.json()["totalResults"] != 0:
+            #         # print(response.json())
+            #         self.parse(response.json())
 
-            except HTTPError as e:
-                # Handle HTTP errors here
-                print(f"HTTP Error while fetching data for {year}-{month} to {next_month}-{day}: {e}")
+            # except HTTPError as e:
+            #     # Handle HTTP errors here
+            #     print(f"HTTP Error while fetching data for {year}-{month} to {next_month}-{day}: {e}")
                 
-            except RequestException as e:
-                # Handle other requests related errors
-                print(f"Request Exception while fetching data for {year}-{month} to {next_month}-{day}: {e}")
+            # except RequestException as e:
+            #     # Handle other requests related errors
+            #     print(f"Request Exception while fetching data for {year}-{month} to {next_month}-{day}: {e}")
 
-            time.sleep(10)
+            # time.sleep(10)
 
 
 
@@ -363,4 +386,4 @@ class DataHandler(SourceHandler):
 
 
 def load(app):
-    app.handler.register(DataHandler)
+    app.handler.register(NVDAPIHandler)

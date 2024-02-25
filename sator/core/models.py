@@ -332,8 +332,38 @@ class Vulnerability(db.Model):
     references = db.relationship("Reference", backref="vulnerability")
     configurations = db.relationship("Configuration", backref="vulnerability")
     vulnStatus = db.Column('vulnStatus', db.String, nullable=True)
-    cvss2 = db.relationship("CVSS2", backref="vulnerability")
-    cvss3 = db.relationship("CVSS3", backref="vulnerability")
+    # cvss2 = db.relationship("CVSS2", backref="vulnerability")
+    # cvss3 = db.relationship("CVSS3", backref="vulnerability")
+
+class Source(db.Model):
+    __tablename__ = "source"
+    id = db.Column('id', db.Integer, primary_key=True)# whether auto increament
+    name = db.Column('name', db.String)
+    link = db.Column('link', db.String, nullable=True)
+
+    # vulnerabilities = db.relationship('Vulnerability', secondary="vulnerability_cwe", backref='cwes')
+
+
+ 
+class CVSS3Source(db.Model):
+    __tablename__ = 'cvss3_source'
+    __table_args__ = (
+        db.PrimaryKeyConstraint('cvss', 'source_id'),
+    )
+
+    cvss = db.db.Column('cvss', db.String, db.ForeignKey('cvss3.id'))
+    source_id = db.db.Column('source_id', db.String, db.ForeignKey('source.id'))
+
+class CVSS2Source(db.Model):
+    __tablename__ = 'cvss2_source'
+    __table_args__ = (
+        db.PrimaryKeyConstraint('cvss', 'source_id'),
+    )
+
+    cvss = db.db.Column('cvss', db.String, db.ForeignKey('cvss2.id'))
+    source_id = db.db.Column('source_id', db.String, db.ForeignKey('source.id'))
+
+
 
 class VulnerabilityCVSS3(db.Model):
     __tablename__ = 'vulnerability_cvss3'
@@ -348,9 +378,9 @@ class CVSS3(db.Model):
     __tablename__ = "cvss3"
 
     id = db.Column(db.String, primary_key=True)
-    vulnerability_id = db.Column(db.String, db.ForeignKey('vulnerability.id'))
+    #vulnerability_id = db.Column(db.String, db.ForeignKey('vulnerability.id'))
     # cve_id = db.Column('cve_id', db.String)
-    source = db.Column('source', db.String, nullable=True)
+    # source = db.relationship("source", backref="vulnerability_cvss3")
     type= db.Column('type', db.String, nullable=True)
     cvssData= db.Column('cvssData', db.String, nullable=True)
     exploitabilityScore= db.Column('exploitabilityScore', db.Float, nullable=True)
@@ -367,7 +397,8 @@ class CVSS3(db.Model):
     cvssData_availabilityImpact = db.Column('cvssData_availabilityImpact', db.String, nullable=True)
     cvssData_baseScore = db.Column('cvssData_baseScore', db.Float, nullable=True)
     cvssData_baseSeverity = db.Column('cvssData_baseSeverity', db.String, nullable=True)
-
+    # cvss3 = db.relationship('cvss3', secondary="cvss3_source", backref='cvss3')
+    
 class VulnerabilityCVSS2(db.Model):
     __tablename__ = 'vulnerability_cvss2'
     __table_args__ = (
@@ -382,9 +413,9 @@ class CVSS2(db.Model):
     __tablename__ = "cvss2"
 
     id = db.Column(db.String, primary_key=True)
-    vulnerability_id = db.Column(db.String, db.ForeignKey('vulnerability.id'))
+    #vulnerability_id = db.Column(db.String, db.ForeignKey('vulnerability.id'))
     # cve_id = db.Column('cve_id', db.String)
-    source = db.Column('source', db.String, nullable=True)
+    # source = db.relationship("source", backref="vulnerability_cvss2")
     type = db.Column('type', db.String, nullable=True)
     # CVSSv2 Specific Columns
     cvssData_version = db.Column('cvssData_version', db.String, nullable=True)
@@ -405,6 +436,7 @@ class CVSS2(db.Model):
     obtainUserPrivilege = db.Column('obtainUserPrivilege', db.Boolean, nullable=True)
     obtainOtherPrivilege = db.Column('obtainOtherPrivilege', db.Boolean, nullable=True)
     userInteractionRequired = db.Column('userInteractionRequired', db.Boolean, nullable=True)
+    # cvss2 = db.relationship('cvss2', secondary="cvss2_source", backref='cvss2')
 
 
 class VulnerabilityCWE(db.Model):

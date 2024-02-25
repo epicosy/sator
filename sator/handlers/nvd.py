@@ -170,9 +170,7 @@ class NVDHandler(SourceHandler):
                     self.add_id(cvss_v3_id, 'cvss3')
                     cvss3_instance = CVSS3(
                         id = cvss_v3_id,
-                        vulnerability_id=cve_id,
-                        # The original code incorrectly accessed 'source' and 'type' which aren't in the 'cvssV3' structure
-                        # Assuming 'source' and 'type' need to be handled differently or removed if not applicable
+                        # vulnerability_id=cve_id,
                         exploitabilityScore=base_metric_v3['exploitabilityScore'],
                         impactScore=base_metric_v3['impactScore'],
                         cvssData_version=cvss_v3['version'],
@@ -196,12 +194,13 @@ class NVDHandler(SourceHandler):
             if "baseMetricV2" in metrics:
                 base_metric_v2 = metrics["baseMetricV2"]
                 cvss_v2 = base_metric_v2["cvssV2"]  # Direct access to the "cvssV2" dictionary
+                print(cvss_v2)
                 cvss_v2_id = self.get_digest(json.dumps(cvss_v2))
                 if not self.has_id(cvss_v2_id, 'cvss2'):
                     self.add_id(cvss_v2_id, 'cvss2')
                     cvss2_instance = CVSS2(
                         id = cvss_v2_id,
-                        vulnerability_id=cve_id,
+                        # vulnerability_id=cve_id,
                         cvssData_version=cvss_v2['version'],
                         cvssData_vectorString=cvss_v2['vectorString'],
                         cvssData_accessVector=cvss_v2['accessVector'],

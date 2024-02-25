@@ -385,6 +385,7 @@ class Vulnerability(SQLAlchemyObjectType):
 
         return cwe_vuln_query.all()
 
+
     def resolve_cwe_ids(self, info):
         cwe_vuln_query = VulnerabilityCWE.get_query(info=info)
         cwe_vuln_query = cwe_vuln_query.filter(VulnerabilityCWEModel.vulnerability_id == self.id)
