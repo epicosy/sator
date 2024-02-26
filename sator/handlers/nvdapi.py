@@ -11,7 +11,7 @@ import requests
 from requests.exceptions import RequestException, HTTPError
 import traceback  
 from sator.core.exc import SatorError
-from sator.core.models import CVSS3, CVSS2, Vulnerability, CVSS2Source, CVSS3Source, db, Reference, VulnerabilityCWE, ReferenceTag, Repository, \
+from sator.core.models import CVSS3, CVSS2, Vulnerability, CVSS2Source, CVSS3Source,Source, db, Reference, VulnerabilityCWE, ReferenceTag, Repository, \
     Commit, Configuration, ConfigurationVulnerability, Vendor, Product
 from sator.handlers.source import SourceHandler
 import time
@@ -43,7 +43,7 @@ class NVDAPIHandler(SourceHandler):
 
         # self.init_global_context()
         months = ['0'+str(i) for i in range(1,10)]+['10','11','12']
-        for year in (range(2020, 2024, 1)):
+        for year in (range(2017, 2018, 1)):
           for i in range(len(months)):
             month = months[i]
             if month == '12':
@@ -231,6 +231,7 @@ class NVDAPIHandler(SourceHandler):
                     cvss_v3_id = self.get_digest(json.dumps(cvss_data))
                     if not self.has_id(cvss_v3_id, 'cvss3'):
                         self.add_id(cvss_v3_id, 'cvss3')
+                     
                         cvss3_instance = CVSS3(
                                     id = cvss_v3_id,
                                     # vulnerability_id = cve_id,
@@ -254,6 +255,31 @@ class NVDAPIHandler(SourceHandler):
                    
                         db.session.add(cvss3_instance)
                         db.session.commit()
+                        
+                        if cvss_data['source']:
+                            source_name = cvss_data['source'].split("@")[0]
+                            source_link = cvss_data['source']
+                            source = Source.query.filter_by(name=source_name).first()
+                            if not source:
+                                source = Source(name=source_name, link=source_link)
+                                db.session.add(source)
+                                db.session.commit()
+                            
+                            
+                            
+                            source_id = int(Source.query.filter_by(name = source_name, link = source_link).first().id)
+                            # print("source id")
+                            # print(source_id)
+                            # Create or update CVSS3Source link
+                            cvss3_source = CVSS3Source.query.filter_by(cvss=cvss_v3_id, source_id=source_id).first()
+                            # print("cvss3_source")
+                            # print(cvss3_source)
+                            if cvss3_source is None:
+                                cvss3_source = CVSS3Source(cvss=cvss_v3_id, source_id=source_id)
+                                db.session.add(cvss3_source)
+
+                            db.session.commit()  
+
 
             
             if "cvssMetricV2" in metrics:
@@ -286,6 +312,27 @@ class NVDAPIHandler(SourceHandler):
                         )
                         db.session.add(cvss2_instance)
                         db.session.commit()
+
+                        if cvss_data['source']:
+                            source_name = cvss_data['source'].split("@")[0]
+                            source_link = cvss_data['source']
+                            source = Source.query.filter_by(name=source_name).first()
+                            if not source:
+                                source = Source(name=source_name, link=source_link)
+                                db.session.add(source)
+                                db.session.commit()
+                            
+                            
+                            
+                            source_id = int(Source.query.filter_by(name = source_name, link = source_link).first().id)
+            
+                            cvss2_source = CVSS2Source.query.filter_by(cvss=cvss_v2_id, source_id=source_id).first()
+                          
+                            if cvss2_source is None:
+                                cvss2_source = CVSS2Source(cvss=cvss_v2_id, source_id=source_id)
+                                db.session.add(cvss2_source)
+
+                            db.session.commit()  
 
 
 

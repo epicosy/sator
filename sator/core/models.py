@@ -352,7 +352,7 @@ class CVSS3Source(db.Model):
     )
 
     cvss = db.db.Column('cvss', db.String, db.ForeignKey('cvss3.id'))
-    source_id = db.db.Column('source_id', db.String, db.ForeignKey('source.id'))
+    source_id = db.db.Column('source_id', db.Integer, db.ForeignKey('source.id'))
 
 class CVSS2Source(db.Model):
     __tablename__ = 'cvss2_source'
@@ -361,7 +361,7 @@ class CVSS2Source(db.Model):
     )
 
     cvss = db.db.Column('cvss', db.String, db.ForeignKey('cvss2.id'))
-    source_id = db.db.Column('source_id', db.String, db.ForeignKey('source.id'))
+    source_id = db.db.Column('source_id', db.Integer, db.ForeignKey('source.id'))
 
 
 
