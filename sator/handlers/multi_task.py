@@ -31,7 +31,7 @@ class TaskWorker(Thread):
     #         task.start()
 
     #         try:
-    #             self.logger.info(f"Running task {task.id}")
+    #             #self.logger.info(f"Running task {task.id}")
     #             task.result = self.func(**task.assets)
     #         except Exception as e:
     #             task.error(str(e))
@@ -40,7 +40,7 @@ class TaskWorker(Thread):
     #             if callback is not None:
     #                 callback(task)
     #             self.queue.task_done()
-    #             self.logger.info(f"Task {task.id} duration: {task.duration()}")
+    #             #self.logger.info(f"Task {task.id} duration: {task.duration()}")
 
 
     # run with fix number retry
@@ -82,7 +82,7 @@ class TaskWorker(Thread):
         # Initialize rate limiting parameters
         last_request_time = datetime.now() - timedelta(seconds=30)  # Ensures we don't wait on the first request
         request_count = 0
-        max_requests = 5  
+        # max_requests = 5  
         rate_limit_window = 30  # Seconds
         retry_delay = 10
         while True:
@@ -95,7 +95,7 @@ class TaskWorker(Thread):
                     # Check rate limit
                     current_time = datetime.now()
                     if current_time - last_request_time < timedelta(seconds=rate_limit_window):
-                        if request_count >= max_requests:
+                        # if request_count >= max_requests:
                             # Calculate sleep time to reset the rate limit window
                             sleep_time = (last_request_time + timedelta(seconds=rate_limit_window) - current_time).total_seconds()
                             self.logger.info(f"Rate limit reached, sleeping for {sleep_time} seconds")
@@ -112,10 +112,12 @@ class TaskWorker(Thread):
                     task.result = self.func(**task.assets)  # Attempt to run the task
                     success = True  # Task successful, set success flag
                     request_count += 1  # Increment request count for rate limiting
+                finally:
+                    abc =1 
 
-                except Exception as e:
-                    self.logger.error(f"Task {task.id} failed with error: {str(e)}, retrying in {retry_delay} seconds")
-                    time.sleep(retry_delay)  # Wait before retrying
+                # except Exception as e:
+                #     self.logger.error(f"Task {task.id} failed with error: {str(e)}, retrying in {retry_delay} seconds")
+                #     time.sleep(retry_delay)  # Wait before retrying
 
             # Task completion after successful attempt
             if callback is not None:

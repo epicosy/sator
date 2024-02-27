@@ -15,7 +15,7 @@ from sator.core.models import CVSS3, CVSS2, Vulnerability, CVSS2Source, CVSS3Sou
     Commit, Configuration, ConfigurationVulnerability, Vendor, Product
 from sator.handlers.source import SourceHandler
 import time
-
+from datetime import datetime, timedelta
 
 # TODO: Get metrics for version 3.0
 
@@ -26,70 +26,61 @@ class NVDAPIHandler(SourceHandler):
 
     def __init__(self, **kw):
         super().__init__(**kw)
-    def send_request(self, **kwargs):
-        year = kwargs.get('year')
-        month = kwargs.get('month')
-        day = kwargs.get('day')
-        next_month = kwargs.get('next_month')
+    def send_request_and_parse(self, **kwargs):
         base_url = kwargs.get('base_url')
         params = kwargs.get('params')   
-        print("requesting vulnerabilities from "+ str(year)+ "/"+ str(month)+"/"+day+"-"+str(next_month)+"/"+str(day))
+        print("requesting vulnerabilities from pubStartDate "+ str(params["pubStartDate"])+ " to pubEndDate "+str(params["pubEndDate"]))
         response = requests.get(base_url, params=params)
         response.raise_for_status()  # Raise an exception for HTTP errors
-        return response
+        if response.json():
+            self.parse(response.json())
+
+        # return response
 
     def run(self):
 
 
+         
         # self.init_global_context()
-        months = ['0'+str(i) for i in range(1,10)]+['10','11','12']
-        for year in (range(2017, 2018, 1)):
-          for i in range(len(months)):
-            month = months[i]
-            if month == '12':
-                next_month = '12'
-                day = '31'
-            else:
-                day = '01'
-                next_month = months[i+1]
+        for year in range(2000, 2024):
+            start_date = datetime(year, 1, 1)  # Start from January 1st of the current year
+            while start_date.year == year:
+                end_date = start_date + timedelta(days=119)  # 119 days later
+                # Ensure the end_date does not exceed the current year
+                if end_date.year > year:
+                    end_date = datetime(year, 12, 31)
 
-            base_url = 'https://services.nvd.nist.gov/rest/json/cves/2.0'
-            params = {
-                'pubStartDate': f'{year}-{month}-01T00:00:00.000',
-                'pubEndDate': f'{year}-{next_month}-{day}T00:00:00.000'
-            }
+                # Format the start and end dates
+                pubStartDate = start_date.strftime('%Y-%m-%dT00:00:00.000')
+                pubEndDate = end_date.strftime('%Y-%m-%dT23:59:59.999')
 
-            # try:
-            self.multi_task_handler.add(base_url = base_url,params =params,year=year,month=month,day=day,next_month=next_month)
-        
-        self.multi_task_handler(func=self.send_request)
-        results = self.multi_task_handler.results()    
-        del self.multi_task_handler
+                # Prepare the URL and parameters for the request
+                base_url = 'https://services.nvd.nist.gov/rest/json/cves/2.0'
+                params = {
+                    'pubStartDate': pubStartDate,
+                    'pubEndDate': pubEndDate
+                }
 
+                # Add task for processing
+                self.multi_task_handler.add(base_url=base_url, params=params)
+
+                # Update start_date for the next loop iteration
+                start_date = end_date + timedelta(days=1)  # Start the next period the day after the current end_date
+
+        # Initialize global context and start processing tasks
         self.init_global_context()
+        self.multi_task_handler(func=self.send_request_and_parse)
+        # results = self.multi_task_handler.results()    
+        # del self.multi_task_handler
+
+        # self.init_global_context()
 
         # parse json files into a single dataframe
-        for json_file in results:
-            self.multi_task_handler.add(json_file=json_file.json())
+        # for json_file in results:
+        #     self.multi_task_handler.add(json_file=json_file.json())
 
-        self.multi_task_handler(func=self.parse)
-        self.multi_task_handler.results()
-                # print("ok")
-                # print(year)
-                # print(month)
-            #     if response.json()["totalResults"] != 0:
-            #         # print(response.json())
-            #         self.parse(response.json())
-
-            # except HTTPError as e:
-            #     # Handle HTTP errors here
-            #     print(f"HTTP Error while fetching data for {year}-{month} to {next_month}-{day}: {e}")
-                
-            # except RequestException as e:
-            #     # Handle other requests related errors
-            #     print(f"Request Exception while fetching data for {year}-{month} to {next_month}-{day}: {e}")
-
-            # time.sleep(10)
+        # self.multi_task_handler(func=self.parse)
+        # self.multi_task_handler.results()
 
 
 
@@ -106,9 +97,13 @@ class NVDAPIHandler(SourceHandler):
                     self._process_cve(cve_id=cve_id, cve=cve)
                 except IntegrityError as ie:
                     # Use traceback.format_exc() to get the stack trace information as a string
+                    self.app.log.warning("here")
+
                     self.app.log.warning(f"{ie}\n{traceback.format_exc()}")
         except Exception as e:
             # Similarly, log the general exception with traceback
+            self.app.log.warning("here2")
+
             self.app.log.warning(f"General Error: {e}\n{traceback.format_exc()}")
 
 
@@ -259,7 +254,7 @@ class NVDAPIHandler(SourceHandler):
                         if cvss_data['source']:
                             source_name = cvss_data['source'].split("@")[0]
                             source_link = cvss_data['source']
-                            source = Source.query.filter_by(name=source_name).first()
+                            source = Source.query.filter_by(name=source_name, link = source_link).first()
                             if not source:
                                 source = Source(name=source_name, link=source_link)
                                 db.session.add(source)
@@ -313,10 +308,10 @@ class NVDAPIHandler(SourceHandler):
                         db.session.add(cvss2_instance)
                         db.session.commit()
 
-                        if cvss_data['source']:
-                            source_name = cvss_data['source'].split("@")[0]
-                            source_link = cvss_data['source']
-                            source = Source.query.filter_by(name=source_name).first()
+                        if cvss_data_v2['source']:
+                            source_name = cvss_data_v2['source'].split("@")[0]
+                            source_link = cvss_data_v2['source']
+                            source = Source.query.filter_by(name=source_name, link = source_link).first()
                             if not source:
                                 source = Source(name=source_name, link=source_link)
                                 db.session.add(source)
