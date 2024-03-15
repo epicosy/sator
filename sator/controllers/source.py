@@ -19,18 +19,34 @@ class Source(Controller):
     def __init__(self, **kw):
         super().__init__(**kw)
 
-    def _post_argument_parsing(self):
-        super()._post_argument_parsing()
-
-        if self.app.pargs.__controller_namespace__ == 'source':
-            from sator.core.models import set_db
-            set_db(self.app.flask_configs.get('SQLALCHEMY_DATABASE_URI'))
-
     @ex(
-        help='Gets data from the specified source'
+        help='Gets data from the specified source',
+        arguments=[
+            (['-s', '--start'], {'help': 'Start year for the data', 'type': int, 'required': False}),
+            (['-e', '--end'], {'help': 'End year for the data', 'type': int, 'required': False})
+        ]
     )
     def collect(self):
-        self.app.handler.get('handlers', self.app.pargs.name, setup=True).run()
+        from datetime import datetime
+        end = datetime.now().year + 1
+        start = self.app.pargs.start if self.app.pargs.start else 1988
+
+        if start < 1988:
+            self.app.log.error("Start year cannot be less than 1988.")
+            return
+
+        if self.app.pargs.end > end:
+            self.app.log.error(f"End year cannot be greater than {end}.")
+            return
+        else:
+            end = self.app.pargs.end
+
+        # check if ranges are valid
+        if start > end:
+            self.app.log.error("Start year cannot be greater than end year.")
+            return
+
+        self.app.handler.get('handlers', self.app.pargs.name, setup=True).run(start=start, end=end)
 
     @ex(
         help='Gets data from GitHub',
