@@ -1,15 +1,19 @@
 import threading
+import requests
 
+from pathlib import Path
+from cement import Handler
 from collections import deque
-from typing import Union, List
+from typing import Union, List, Tuple
 
+from github import Github
+from github.Commit import Commit
+from github.Repository import Repository
+from github.GithubException import GithubException, RateLimitExceededException, UnknownObjectException
+
+from sator.data.parsing import DiffBlock
 from sator.core.exc import SatorGithubError
 from sator.core.interfaces import HandlersInterface
-from cement import Handler
-from github import Github
-from github.GithubException import GithubException, RateLimitExceededException, UnknownObjectException
-from github.Repository import Repository
-from github.Commit import Commit
 
 
 class GithubHandler(HandlersInterface, Handler):
@@ -89,3 +93,82 @@ class GithubHandler(HandlersInterface, Handler):
         self.app.log.error(err_msg)
 
         return None
+
+    def get_diff(self, commit: Commit) -> str:
+        self.app.log.info(f"Requesting {commit.raw_data['html_url']}.diff")
+
+        return requests.get(f"{commit.raw_data['html_url']}.diff").text
+
+    def get_blocks_from_diff(self, diff_text: str, extensions: list = None) -> List[DiffBlock]:
+        """
+        Parses the input diff string and returns a list of result entries.
+
+        :param diff_text: The input git diff string in unified diff format.
+        :param extensions: file to include from the diff based on extensions.
+        :return: A list of entries resulted from the input diff to be appended to the output csv file.
+        """
+
+        if not diff_text:
+            return []
+
+        # Look for a_path
+        lines = diff_text.splitlines()
+        diff_path_bound = [line_id for line_id in range(len(lines)) if lines[line_id].startswith("--- ")]
+        num_paths = len(diff_path_bound)
+        diff_path_bound.append(len(lines))
+        blocks = []
+
+        for path_id in range(num_paths):
+            # Only look for a_paths with the interested file extensions
+            if extensions and len(extensions) > 0:
+                ext = Path(lines[diff_path_bound[path_id]]).suffix
+
+                if ext not in extensions:
+                    continue
+
+            # Only consider file modification, ignore file additions for now
+            block_start = diff_path_bound[path_id]
+            if not lines[block_start + 1].startswith("+++ "):
+                self.app.log.warning(f"Skipping block {block_start + 1} missing +++")
+                continue
+
+            # Ignore file deletions for now
+            if not lines[block_start + 1].endswith(" /dev/null"):
+                # Format of the "---" and "+++" lines:
+                # --- a/<a_path>
+                # +++ b/<b_path>
+                diff_block = DiffBlock(start=block_start, a_path=lines[block_start][len("--- a/"):],
+                                       b_path=lines[block_start + 1][len("+++ b/"):])
+
+                # Do not include diff in the test files
+                # TODO: should be provided as a parameter
+                if "test" in diff_block.a_path or "test" in diff_block.b_path:
+                    continue
+
+                blocks.append(diff_block)
+
+        return blocks
+
+    def get_file_from_commit(self, repo_file_path: str, commit: Commit, output_path: Path = None) \
+            -> Tuple[str, Union[None, int]]:
+        if output_path and output_path.exists() and output_path.stat().st_size != 0:
+            self.app.log.info(f"{output_path} exists, reading...")
+
+            with output_path.open(mode='r') as f:
+                f_str = f.read()
+        else:
+            url = f"{commit.html_url}/{repo_file_path}".replace('commit', 'raw')
+            self.app.log.info(f"Requesting {url}")
+            f_str = requests.get(url).text
+
+            if output_path:
+                self.app.log.info(f"Writing {output_path}")
+                output_path.parent.mkdir(exist_ok=True, parents=True)
+
+                with output_path.open(mode="w") as f:
+                    f.write(f_str)
+
+        if output_path:
+            return f_str, output_path.stat().st_size
+
+        return f_str, None
