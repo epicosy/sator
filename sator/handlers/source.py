@@ -15,14 +15,24 @@ from urllib.parse import urlparse
 
 from sator.core.exc import SatorError
 from sator.core.interfaces import HandlersInterface
-from sator.core.models import Tag, CWE, Vulnerability, Reference, Repository, Commit, Configuration, Product, Vendor, \
-    CommitFile, db, CommitParent, Topic, RepositoryTopic, ConfigurationVulnerability
 from sator.handlers.github import GithubHandler
 from sator.handlers.multi_task import MultiTaskHandler
+
 from github.Repository import Repository as GithubRepository
 from github.Commit import Commit as GithubCommit
 from github.File import File as GithubFile
 from github.GitCommit import GitCommit
+
+
+from arepo.models.common.vulnerability import VulnerabilityModel, TagModel, ReferenceModel
+from arepo.models.common.weakness import CWEModel
+from arepo.models.common.platform import ProductModel, VendorModel, ConfigurationModel, ConfigurationVulnerabilityModel
+
+from arepo.models.vcs.core import RepositoryModel, CommitModel, CommitFileModel, CommitParentModel
+from arepo.models.vcs.symbol import TopicModel, RepositoryTopicModel
+
+from sqlalchemy.orm import Session
+
 
 # captures pull requests and diffs
 HOST_OWNER_REPO_REGEX = '(?P<host>(git@|https:\/\/)([\w\.@]+)(\/|:))(?P<owner>[\w,\-,\_]+)\/(?P<repo>[\w,\-,\_]+)(.git){0,1}((\/){0,1})'
@@ -50,35 +60,38 @@ class SourceHandler(HandlersInterface, Handler):
         self.lock = threading.Lock()
 
     def init_global_context(self):
+        # TODO: too complex, simplify
         self.app.log.info("Initializing global context...")
+        session = self.app.db_con.get_session()
         # Setup available tags and CWE-IDs
-        for tag in Tag.query.all():
+
+        for tag in session.query(TagModel).all():
             self.tag_ids[tag.name] = tag.id
 
-        for cwe in CWE.query.all():
+        for cwe in session.query(CWEModel).all():
             self.cwe_ids.append(cwe.id)
 
         # Setup IDs in database
         self.app.log.info("Loading vuln IDs...")
-        self.db_ids['vulns'] = set([cve.id for cve in Vulnerability.query.all()])
+        self.db_ids['vulns'] = set([cve.id for cve in session.query(VulnerabilityModel).all()])
         self.app.log.info("Loading ref IDs...")
-        self.db_ids['refs'] = set([ref.id for ref in Reference.query.all()])
+        self.db_ids['refs'] = set([ref.id for ref in session.query(ReferenceModel).all()])
         self.app.log.info("Loading repo IDs...")
-        self.db_ids['repos'] = set([repo.id for repo in Repository.query.all()])
+        self.db_ids['repos'] = set([repo.id for repo in session.query(RepositoryModel).all()])
         self.app.log.info("Loading commits IDs...")
-        self.db_ids['commits'] = set([commit.id for commit in Commit.query.all()])
+        self.db_ids['commits'] = set([commit.id for commit in session.query(CommitModel).all()])
         self.app.log.info("Loading configs IDs...")
-        self.db_ids['configs'] = set([config.id for config in Configuration.query.all()])
+        self.db_ids['configs'] = set([config.id for config in session.query(ConfigurationModel).all()])
         self.app.log.info("Loading config_vuln IDs...")
-        self.db_ids['config_vuln'] = set([f"{cv.configuration_id}_{cv.vulnerability_id}" for cv in ConfigurationVulnerability.query.all()])
+        self.db_ids['config_vuln'] = set([f"{cv.configuration_id}_{cv.vulnerability_id}" for cv in session.query(ConfigurationVulnerabilityModel).all()])
         self.app.log.info("Loading products IDs...")
-        self.db_ids['products'] = set([product.id for product in Product.query.all()])
+        self.db_ids['products'] = set([product.id for product in session.query(ProductModel).all()])
         self.app.log.info("Loading vendors IDs...")
-        self.db_ids['vendors'] = set([vendor.id for vendor in Vendor.query.all()])
+        self.db_ids['vendors'] = set([vendor.id for vendor in session.query(VendorModel).all()])
         self.app.log.info("Loading commits files IDs...")
-        self.db_ids['files'] = set([commit_file.id for commit_file in CommitFile.query.all()])
+        self.db_ids['files'] = set([commit_file.id for commit_file in session.query(CommitFileModel).all()])
         self.app.log.info("Loading topics IDs...")
-        self.db_ids['topics'] = set([topic.id for topic in Topic.query.all()])
+        self.db_ids['topics'] = set([topic.id for topic in session.query(TopicModel).all()])
 
     def has_id(self, _id: str, _type: str) -> bool:
         return _id in self.db_ids[_type]
@@ -221,7 +234,7 @@ class SourceHandler(HandlersInterface, Handler):
         return NormalizedCommit(owner=match['owner'], repo=match['repo'], sha=match_sha.group(0), url=ref)
 
     @staticmethod
-    def has_commits(commits: List[Commit]):
+    def has_commits(commits: List[CommitModel]):
         # check if repo has all commits available and has related files and parents
         for c in commits:
             # TODO: check for database for files and parents to avoid mismatches between count and actual entries
@@ -239,15 +252,16 @@ class SourceHandler(HandlersInterface, Handler):
 
         return True
 
-    def update_unavailable_repository(self, repo_model: Repository):
+    def update_unavailable_repository(self, session: Session, repo_model: RepositoryModel):
+        # TODO: probably need to pass session as argument to query the repository
         repo_model.available = False
 
-        for commit_model in repo_model.commits:
-            commit_model.available = False
+        session.query(CommitModel).filter(CommitModel.repository_id == repo_model.id).update({CommitModel.available: False})
+        session.commit()
 
-        db.session.commit()
+    def update_awaiting_repository(self, session: Session, repo: GithubRepository, repo_model: RepositoryModel):
+        # TODO: probably need to pass session as argument to query the repository
 
-    def update_awaiting_repository(self, repo: GithubRepository, repo_model: Repository):
         repo_model.available = True
         repo_model.language = repo.language
         repo_model.description = repo.description
@@ -262,20 +276,23 @@ class SourceHandler(HandlersInterface, Handler):
 
             if not self.has_id(topic_digest, 'topics'):
                 self.add_id(topic_digest, 'topics')
-                db.session.add(Topic(id=topic_digest, name=topic))
-                db.session.commit()
+                session.add(TopicModel(id=topic_digest, name=topic))
+                session.commit()
 
-            db.session.add(RepositoryTopic(topic_id=topic_digest, repository_id=repo_model.id))
+            session.add(RepositoryTopicModel(topic_id=topic_digest, repository_id=repo_model.id))
 
-        db.session.commit()
+        session.commit()
 
-    def update_awaiting_commit(self, repo: GithubRepository, commit_model: Commit) -> Union[GithubCommit, None]:
+    def update_awaiting_commit(self, session: Session, repo: GithubRepository,
+                               commit_model: CommitModel) -> Union[GithubCommit, None]:
+        # TODO: probably need to pass session as argument to query the commit
         commit = self.github_handler.get_commit(repo, commit_sha=commit_model.sha)
 
         # add flag for available commits
         if not commit:
-            commit_model.available = False
-            db.session.commit()
+            session.query(CommitModel).filter(CommitModel.id == commit_model.id).update({CommitModel.available: False})
+            session.commit()
+
             return None
 
         commit_model.author = commit.commit.author.name.strip()
@@ -291,13 +308,14 @@ class SourceHandler(HandlersInterface, Handler):
             commit_model.url = commit.html_url
 
         commit_model.available = True
-        db.session.commit()
+        session.commit()
 
         return commit
 
     def update_commit_file(self, commit_id: str, commit_sha: str, file: GithubFile) -> str:
         file_digest = self.get_digest(f"{commit_sha}/{file.filename}")
         patch = None
+        session = self.app.db_con.get_session()
 
         if not self.has_id(file_digest, 'files'):
             if file.patch:
@@ -306,18 +324,21 @@ class SourceHandler(HandlersInterface, Handler):
                 patch = patch.replace("\x00", "\uFFFD")
             # TODO: add programming language (Guesslang)
 
-            commit_file = CommitFile(filename=file.filename, additions=file.additions, deletions=file.deletions,
-                                     changes=file.changes, status=file.status, raw_url=file.raw_url, id=file_digest,
-                                     extension=Path(file.filename).suffix, commit_id=commit_id, patch=patch)
+            commit_file = CommitFileModel(filename=file.filename, additions=file.additions, deletions=file.deletions,
+                                          changes=file.changes, status=file.status, raw_url=file.raw_url, patch=patch,
+                                          extension=Path(file.filename).suffix, commit_id=commit_id, id=file_digest)
 
-            db.session.add(commit_file)
-            db.session.commit()
+            session.add(commit_file)
+            session.commit()
             self.add_id(file_digest, 'files')
 
         return file_digest
 
-    def update_commit_files(self, repo: GithubRepository, commit_model: Commit, commit: GithubCommit) -> bool:
-        commit_files = [cf.id for cf in CommitFile.query.filter_by(commit_id=commit_model.id).all()]
+    def update_commit_files(self, session: Session, repo: GithubRepository, commit_model: CommitModel,
+                            commit: GithubCommit) -> bool:
+        # TODO: probably need to pass session as argument to query the commit
+        commit_files_query = session.query(CommitFileModel).filter(CommitFileModel.commit_id == commit_model.id)
+        commit_files = [cf.id for cf in commit_files_query.all()]
 
         if (commit_model.files_count is None) or (len(commit_files) != commit_model.files_count):
 
@@ -328,26 +349,30 @@ class SourceHandler(HandlersInterface, Handler):
                 self.update_commit_file(commit_model.id, commit_model.sha, f)
 
             commit_model.files_count = len(commit.files)
-            db.session.commit()
+            session.commit()
 
             return True
 
         return False
 
-    def update_parent_commit(self, commit_model: Commit, parent: GitCommit) -> str:
+    def update_parent_commit(self, commit_model: CommitModel, parent: GitCommit) -> str:
+        session = self.app.db_con.get_session()
         parent_digest = self.get_digest(parent.url)
 
         if not self.has_id(parent_digest, 'commits'):
-            db.session.add(Commit(id=parent_digest, kind='parent', url=parent.url,
-                                  repository_id=commit_model.repository_id, sha=parent.sha,
-                                  vulnerability_id=commit_model.vulnerability_id))
-            db.session.commit()
+            session.add(CommitModel(id=parent_digest, kind='parent', url=parent.url, sha=parent.sha,
+                                    repository_id=commit_model.repository_id,
+                                    vulnerability_id=commit_model.vulnerability_id))
+            session.commit()
             self.add_id(parent_digest, 'commits')
 
         return parent_digest
 
-    def update_parent_commits(self, repo: GithubRepository, commit: GithubCommit, commit_model: Commit) -> bool:
-        parent_commits = [cp.parent_id for cp in CommitParent.query.filter_by(commit_id=commit_model.id).all()]
+    def update_parent_commits(self, session: Session, repo: GithubRepository, commit: GithubCommit,
+                              commit_model: CommitModel) -> bool:
+
+        parent_commits_query = session.query(CommitParentModel).filter(CommitParentModel.commit_id == commit_model.id)
+        parent_commits = [cp.parent_id for cp in parent_commits_query.all()]
 
         if (commit_model.parents_count is None) or (len(parent_commits) != commit_model.parents_count):
 
@@ -358,35 +383,35 @@ class SourceHandler(HandlersInterface, Handler):
                 parent_digest = self.update_parent_commit(commit_model, parent)
 
                 if parent_digest not in parent_commits:
-                    db.session.add(CommitParent(commit_id=commit_model.id, parent_id=parent_digest))
-                    db.session.commit()
+                    session.add(CommitParentModel(commit_id=commit_model.id, parent_id=parent_digest))
+                    session.commit()
 
             commit_model.parents_count = len(commit.commit.parents)
-            db.session.commit()
+            session.commit()
 
             return True
 
         return False
 
-    def update_commit(self, repo: GithubRepository, commit_model: Commit):
+    def update_commit(self, session: Session, repo: GithubRepository, commit_model: CommitModel):
         commit = None
 
         if commit_model.available is None:
-            commit = self.update_awaiting_commit(repo, commit_model)
+            commit = self.update_awaiting_commit(session, repo, commit_model)
 
         if commit_model.available:
-            self.update_commit_files(repo, commit_model, commit)
+            self.update_commit_files(session, repo, commit_model, commit)
 
             if commit_model.kind != 'parent':
-                self.update_parent_commits(repo, commit, commit_model)
+                self.update_parent_commits(session, repo, commit, commit_model)
 
     def add_metadata(self):
         self.init_global_context()
+        session = self.app.db_con.get_session(scoped=True)
 
-        for repo_model in tqdm(Repository.query.join(Commit).all()):
-            if repo_model.available is False:
-                continue
+        repo_query = session.query(RepositoryModel).filter(RepositoryModel.available.is_(True))
 
+        for repo_model in tqdm(repo_query.all()):
             if self.has_commits(repo_model.commits):
                 self.app.log.info(f"Skipping {repo_model.owner}/{repo_model.name}...")
                 continue
@@ -395,11 +420,11 @@ class SourceHandler(HandlersInterface, Handler):
             repo = self.github_handler.get_repo(repo_model.owner, project=repo_model.name)
 
             if not repo:
-                self.update_unavailable_repository(repo_model)
+                self.update_unavailable_repository(session, repo_model)
                 continue
 
             if repo_model.available is None:
-                self.update_awaiting_repository(repo, repo_model)
+                self.update_awaiting_repository(session, repo, repo_model)
 
             for commit_model in tqdm(repo_model.commits):
-                self.update_commit(repo, commit_model)
+                self.update_commit(session, repo, commit_model)
