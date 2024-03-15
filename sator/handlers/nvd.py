@@ -1,7 +1,5 @@
 import json
 
-import pandas as pd
-
 from sqlalchemy.exc import IntegrityError
 from tqdm import tqdm
 from pathlib import Path
@@ -181,7 +179,7 @@ class NVDHandler(SourceHandler):
         return cwes
 
     @staticmethod
-    def get_cve(data: pd.DataFrame):
+    def get_cve(data: dict):
         return data["cve"]["CVE_data_meta"]["ID"]
 
     @staticmethod
