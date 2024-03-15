@@ -98,7 +98,7 @@ class TaskWorker(Thread):
                         # if request_count >= max_requests:
                             # Calculate sleep time to reset the rate limit window
                             sleep_time = (last_request_time + timedelta(seconds=rate_limit_window) - current_time).total_seconds()
-                            self.logger.info(f"Rate limit reached, sleeping for {sleep_time} seconds")
+                            #self.logger.info(f"Rate limit reached, sleeping for {sleep_time} seconds")
                             time.sleep(max(sleep_time, 1))  # Sleep at least 1 second to ensure we don't under-sleep due to time precision
                             # Reset rate limit tracking
                             last_request_time = datetime.now()
@@ -108,16 +108,15 @@ class TaskWorker(Thread):
                         last_request_time = current_time
                         request_count = 0
 
-                    self.logger.info(f"Running task {task.id}")
+                    #self.logger.info(f"Running task {task.id}")
                     task.result = self.func(**task.assets)  # Attempt to run the task
                     success = True  # Task successful, set success flag
                     request_count += 1  # Increment request count for rate limiting
-                finally:
-                    abc =1 
+               
 
-                # except Exception as e:
-                #     self.logger.error(f"Task {task.id} failed with error: {str(e)}, retrying in {retry_delay} seconds")
-                #     time.sleep(retry_delay)  # Wait before retrying
+                except Exception as e:
+                    self.logger.error(f"Task {task.id} failed with error: {str(e)}, retrying in {retry_delay} seconds")
+                    time.sleep(retry_delay)  # Wait before retrying
 
             # Task completion after successful attempt
             if callback is not None:

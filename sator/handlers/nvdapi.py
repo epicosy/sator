@@ -26,14 +26,22 @@ class NVDAPIHandler(SourceHandler):
 
     def __init__(self, **kw):
         super().__init__(**kw)
-    def send_request_and_parse(self, **kwargs):
-        base_url = kwargs.get('base_url')
-        params = kwargs.get('params')   
+    def send_request_and_parse(self, base_url, params):
+        # base_url = kwargs.get('base_url')
+        # params = kwargs.get('params')   
         print("requesting vulnerabilities from pubStartDate "+ str(params["pubStartDate"])+ " to pubEndDate "+str(params["pubEndDate"]))
         response = requests.get(base_url, params=params)
         response.raise_for_status()  # Raise an exception for HTTP errors
+        start_index = params["startIndex"]
         if response.json():
+            print("total result")
+            print(response.json()['totalResults'])
             self.parse(response.json())
+            if  response.json()['totalResults'] > 2000*(start_index +1):
+                params["startIndex"] = start_index + 1 
+                self.send_request_and_parse(base_url, params)
+
+
 
         # return response
 
@@ -42,7 +50,7 @@ class NVDAPIHandler(SourceHandler):
 
          
         # self.init_global_context()
-        for year in range(2000, 2024):
+        for year in range(1987, 2024):
             start_date = datetime(year, 1, 1)  # Start from January 1st of the current year
             while start_date.year == year:
                 end_date = start_date + timedelta(days=119)  # 119 days later
@@ -58,7 +66,9 @@ class NVDAPIHandler(SourceHandler):
                 base_url = 'https://services.nvd.nist.gov/rest/json/cves/2.0'
                 params = {
                     'pubStartDate': pubStartDate,
-                    'pubEndDate': pubEndDate
+                    'pubEndDate': pubEndDate,
+                    'startIndex': 0,
+
                 }
 
                 # Add task for processing
