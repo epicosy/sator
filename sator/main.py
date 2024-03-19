@@ -2,8 +2,6 @@ from cement import App, TestApp
 from cement.core.exc import CaughtSignal
 from .core.exc import SatorError
 from .controllers.base import Base
-from .controllers.database import Database
-from .controllers.server import Server
 from .controllers.source import Source
 from pathlib import Path
 from sator.handlers.multi_task import MultiTaskHandler
@@ -11,7 +9,8 @@ from sator.handlers.nvd import NVDHandler
 from sator.handlers.nvdapi import NVDAPIHandler
 from sator.core.interfaces import HandlersInterface
 from sator.handlers.github import GithubHandler
-from sator.handlers.openai import OpenAIHandler
+from sator.handlers.parser import DiffParserHandler
+from arepo.db import DatabaseConnection
 
 
 class Sator(App):
@@ -48,7 +47,7 @@ class Sator(App):
 
         # register handlers
         handlers = [
-            Base, Database, Server, Source, MultiTaskHandler,NVDAPIHandler, NVDHandler, GithubHandler, OpenAIHandler
+            Base, Source, MultiTaskHandler, GithubHandler, NVDHandler, DiffParserHandler,NVDAPIHandler
         ]
 
     def get_config(self, key: str):
@@ -70,9 +69,17 @@ class Sator(App):
         working_dir.mkdir(exist_ok=True, parents=True)
         self.extend('working_dir', working_dir)
 
-    def set_flask_configs(self):
-        _flask_configs = {k.upper(): v for k, v in self.config.get_dict()['flask'].items()}
-        self.extend('flask_configs', _flask_configs)
+    def set_db(self):
+        import os
+        # get the sqlalchemy database uri from the env variable
+        uri = os.environ.get('SQLALCHEMY_DATABASE_URI', None)
+
+        if uri is None:
+            # TODO: decide if we want to pick the uri from the config file
+            raise SatorError('SQLALCHEMY_DATABASE_URI not found in the environment variables')
+
+        db_con = DatabaseConnection(uri)
+        self.extend('db_con', db_con)
 
 
 class SatorTest(TestApp, Sator):
@@ -86,7 +93,7 @@ def main():
     with Sator() as app:
         try:
             app.setup_working_dir()
-            app.set_flask_configs()
+            app.set_db()
             app.run()
 
         except AssertionError as e:
