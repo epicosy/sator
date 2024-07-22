@@ -17,6 +17,8 @@ from sator.core.exc import SatorError
 from sator.core.interfaces import HandlersInterface
 from sator.handlers.github import GithubHandler
 from sator.handlers.multi_task import MultiTaskHandler
+from sator.core.exc import SatorGithubError
+
 
 from github.Repository import Repository as GithubRepository
 from github.Commit import Commit as GithubCommit
@@ -343,7 +345,11 @@ class SourceHandler(HandlersInterface, Handler):
         if (commit_model.files_count is None) or (len(commit_files) != commit_model.files_count):
 
             if commit is None:
-                commit = self.github_handler.get_commit(repo, commit_sha=commit_model.sha, raise_err=True)
+                try:
+                    commit = self.github_handler.get_commit(repo, commit_sha=commit_model.sha, raise_err=True)
+                except SatorGithubError as sge:
+                    self.app.log.error(f"Could not get commit {commit_model.sha}: {sge}")
+                    return False
 
             for f in commit.files:
                 self.update_commit_file(commit_model.id, commit_model.sha, f)
