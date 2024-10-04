@@ -172,3 +172,21 @@ class GithubHandler(HandlersInterface, Handler):
             return f_str, output_path.stat().st_size
 
         return f_str, None
+
+    def get_repo_tags(self, owner: str, project: str, limit: int = None) -> List[str]:
+        repo = self.get_repo(owner=owner, project=project)
+
+        releases = repo.get_releases()
+
+        if releases.totalCount > 0:
+            if limit and releases.totalCount > limit:
+                # Return the latest n releases
+                return [release.tag_name for release in releases[:limit]]
+            else:
+                return [release.tag_name for release in releases]
+        else:
+            tags = repo.get_tags()
+            if limit and tags.totalCount > limit:
+                return [tag.name for tag in tags[:limit]]
+            else:
+                return [tag.name for tag in tags]

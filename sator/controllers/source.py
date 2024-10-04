@@ -35,11 +35,12 @@ class Source(Controller):
             self.app.log.error("Start year cannot be less than 1988.")
             return
 
-        if self.app.pargs.end > end:
-            self.app.log.error(f"End year cannot be greater than {end}.")
-            return
-        else:
-            end = self.app.pargs.end
+        if self.app.pargs.end:
+            if self.app.pargs.end > end:
+                self.app.log.error(f"End year cannot be greater than {end}.")
+                return
+            else:
+                end = self.app.pargs.end
 
         # check if ranges are valid
         if start > end:
