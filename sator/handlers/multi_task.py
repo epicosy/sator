@@ -13,8 +13,6 @@ from sator.core.exc import SatorError
 from sator.core.interfaces import HandlersInterface
 from sator.data.tasking import Runner, Task
 
-import time
-from datetime import datetime, timedelta
 
 class TaskWorker(Thread):
     def __init__(self, queue: Queue, logger: LogHandler, func: Callable):
@@ -25,105 +23,22 @@ class TaskWorker(Thread):
         self.func = func
         self.start()
 
-    # def run(self):
-    #     while True:
-    #         (task, callback) = self.queue.get()
-    #         task.start()
-
-    #         try:
-    #             #self.logger.info(f"Running task {task.id}")
-    #             task.result = self.func(**task.assets)
-    #         except Exception as e:
-    #             task.error(str(e))
-    #             raise e.with_traceback(e.__traceback__)
-    #         finally:
-    #             if callback is not None:
-    #                 callback(task)
-    #             self.queue.task_done()
-    #             #self.logger.info(f"Task {task.id} duration: {task.duration()}")
-
-
-    # run with fix number retry
-    # def run(self):
-    #     while True:
-    #         task, callback = self.queue.get()  # Get a task
-    #         task.start()
-
-    #         max_retries = 3  # Maximum number of retries
-    #         retry_delay = 1  # Delay between retries, in seconds
-    #         retries = 0
-
-    #         while retries < max_retries:
-    #             try:
-    #                 self.logger.info(f"Running task {task.id}")
-    #                 task.result = self.func(**task.assets)  # Attempt to run the task
-    #                 # Task successful, break from retry loop
-    #                 break
-    #             except Exception as e:
-    #                 self.logger.error(f"Task {task.id} failed with error: {str(e)}")
-    #                 retries += 1  # Increment the retry counter
-    #                 if retries < max_retries:
-    #                     self.logger.info(f"Retrying task {task.id} in {retry_delay} seconds (Retry {retries}/{max_retries})")
-    #                     time.sleep(retry_delay)  # Wait before retrying
-    #                 else:
-    #                     # Log final failure after all retries
-    #                     self.logger.error(f"Task {task.id} exceeded maximum retries ({max_retries}) and failed.")
-    #                     task.error(str(e))  # Record the last error
-
-    #         # Task completion or failure after all retries
-    #         if callback is not None and retries <= max_retries:
-    #             callback(task)  # Call the callback if provided
-
-    #         self.queue.task_done()  # Mark the task as done in the queue
-    #         self.logger.info(f"Task {task.id} completed with {retries} retries.")
-
-
     def run(self):
-        # Initialize rate limiting parameters
-        last_request_time = datetime.now() - timedelta(seconds=30)  # Ensures we don't wait on the first request
-        request_count = 0
-        # max_requests = 5  
-        rate_limit_window = 30  # Seconds
-        retry_delay = 10
         while True:
-            task, callback = self.queue.get()  # Get a task
+            (task, callback) = self.queue.get()
             task.start()
-            success = False
 
-            while not success:
-                try:
-                    # Check rate limit
-                    current_time = datetime.now()
-                    if current_time - last_request_time < timedelta(seconds=rate_limit_window):
-                        # if request_count >= max_requests:
-                            # Calculate sleep time to reset the rate limit window
-                            sleep_time = (last_request_time + timedelta(seconds=rate_limit_window) - current_time).total_seconds()
-                            #self.logger.info(f"Rate limit reached, sleeping for {sleep_time} seconds")
-                            time.sleep(max(sleep_time, 1))  # Sleep at least 1 second to ensure we don't under-sleep due to time precision
-                            # Reset rate limit tracking
-                            last_request_time = datetime.now()
-                            request_count = 0
-                    else:
-                        # Reset rate limit tracking if we're outside the rate limit window
-                        last_request_time = current_time
-                        request_count = 0
-
-                    #self.logger.info(f"Running task {task.id}")
-                    task.result = self.func(**task.assets)  # Attempt to run the task
-                    success = True  # Task successful, set success flag
-                    request_count += 1  # Increment request count for rate limiting
-               
-
-                except Exception as e:
-                    self.logger.error(f"Task {task.id} failed with error: {str(e)}, retrying in {retry_delay} seconds")
-                    time.sleep(retry_delay)  # Wait before retrying
-
-            # Task completion after successful attempt
-            if callback is not None:
-                callback(task)  # Call the callback if provided
-
-            self.queue.task_done()  # Mark the task as done in the queue
-            self.logger.info(f"Task {task.id} completed successfully after retries.")
+            try:
+                self.logger.info(f"Running task {task.id}")
+                task.result = self.func(**task.assets)
+            except Exception as e:
+                task.error(str(e))
+                raise e.with_traceback(e.__traceback__)
+            finally:
+                if callback is not None:
+                    callback(task)
+                self.queue.task_done()
+                self.logger.info(f"Task {task.id} duration: {task.duration()}")
 
 
 class ThreadPoolWorker(Thread):
