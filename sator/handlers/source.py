@@ -5,7 +5,7 @@ import requests
 import functools
 import threading
 import dataclasses
-import Levenshtein
+
 from tqdm import tqdm
 from pathlib import Path
 from cement import Handler
@@ -19,13 +19,12 @@ from sator.handlers.github import GithubHandler
 from sator.handlers.multi_task import MultiTaskHandler
 from sator.core.exc import SatorGithubError
 
-
 from github.Repository import Repository as GithubRepository
 from github.Commit import Commit as GithubCommit
 from github.File import File as GithubFile
 from github.GitCommit import GitCommit
-from github import BadCredentialsException
-from arepo.models.common.scoring import CVSS2Model,  CVSS3Model
+
+from arepo.models.common.scoring import CVSS2Model, CVSS3Model
 from arepo.models.common.vulnerability import VulnerabilityModel, TagModel, ReferenceModel
 from arepo.models.common.weakness import CWEModel
 from arepo.models.common.platform import ProductModel, VendorModel, ConfigurationModel, ConfigurationVulnerabilityModel
@@ -34,7 +33,6 @@ from arepo.models.vcs.core import RepositoryModel, CommitModel, CommitFileModel,
 from arepo.models.vcs.symbol import TopicModel, RepositoryTopicModel
 
 from sqlalchemy.orm import Session
-
 
 # captures pull requests and diffs
 HOST_OWNER_REPO_REGEX = '(?P<host>(git@|https:\/\/)([\w\.@]+)(\/|:))(?P<owner>[\w,\-,\_]+)\/(?P<repo>[\w,\-,\_]+)(.git){0,1}((\/){0,1})'
@@ -85,7 +83,8 @@ class SourceHandler(HandlersInterface, Handler):
         self.app.log.info("Loading configs IDs...")
         self.db_ids['configs'] = set([config.id for config in session.query(ConfigurationModel).all()])
         self.app.log.info("Loading config_vuln IDs...")
-        self.db_ids['config_vuln'] = set([f"{cv.configuration_id}_{cv.vulnerability_id}" for cv in session.query(ConfigurationVulnerabilityModel).all()])
+        self.db_ids['config_vuln'] = set([f"{cv.configuration_id}_{cv.vulnerability_id}" for cv in
+                                          session.query(ConfigurationVulnerabilityModel).all()])
         self.app.log.info("Loading products IDs...")
         self.db_ids['products'] = set([product.id for product in session.query(ProductModel).all()])
         self.app.log.info("Loading vendors IDs...")
@@ -262,7 +261,8 @@ class SourceHandler(HandlersInterface, Handler):
         # TODO: probably need to pass session as argument to query the repository
         repo_model.available = False
 
-        session.query(CommitModel).filter(CommitModel.repository_id == repo_model.id).update({CommitModel.available: False})
+        session.query(CommitModel).filter(CommitModel.repository_id == repo_model.id).update(
+            {CommitModel.available: False})
         session.commit()
 
     def update_awaiting_repository(self, session: Session, repo: GithubRepository, repo_model: RepositoryModel):
@@ -294,17 +294,15 @@ class SourceHandler(HandlersInterface, Handler):
         # TODO: probably need to pass session as argument to query the commit
         commit = self.github_handler.get_commit(repo, commit_sha=commit_model.sha)
 
-
-
         # add flag for available commits
         if not commit:
             session.query(CommitModel).filter(CommitModel.id == commit_model.id).update({CommitModel.available: False})
             session.commit()
 
             return None
-        #todo check if it is a multiple parent commit
-        #select most similar parent commit to be the commit
-        #commit = most similar parent commit
+        # todo check if it is a multiple parent commit
+        # select most similar parent commit to be the commit
+        # commit = most similar parent commit
 
         commit_model.author = commit.commit.author.name.strip()
         commit_model.message = commit.commit.message.strip()
@@ -382,7 +380,6 @@ class SourceHandler(HandlersInterface, Handler):
             self.add_id(parent_digest, 'commits')
 
         return parent_digest
-    
 
     def update_parent_commits(self, session: Session, repo: GithubRepository, commit: GithubCommit,
                               commit_model: CommitModel) -> bool:
@@ -390,8 +387,7 @@ class SourceHandler(HandlersInterface, Handler):
         parent_commits_query = session.query(CommitParentModel).filter(CommitParentModel.commit_id == commit_model.id)
         parent_commits = [cp.parent_id for cp in parent_commits_query.all()]
 
-
-        # if parent count not updated or some parents not stored 
+        # if parent count not updated or some parents not stored
         if (commit_model.parents_count is None) or (len(parent_commits) != commit_model.parents_count):
 
             if commit is None:
@@ -403,77 +399,13 @@ class SourceHandler(HandlersInterface, Handler):
                 if parent_digest not in parent_commits:
                     session.add(CommitParentModel(commit_id=commit_model.id, parent_id=parent_digest))
                     session.commit()
-          
+
             commit_model.parents_count = len(commit.commit.parents)
             session.commit()
 
             return True
 
         return False
-    
-        
-    def update_parent_commits_test(self, session: Session, repo: GithubRepository, commit: GithubCommit,
-                              commit_model: CommitModel) -> bool:
-
-        parent_commits_query = session.query(CommitParentModel).filter(CommitParentModel.commit_id == commit_model.id)
-        parent_commits = [cp.parent_id for cp in parent_commits_query.all()]
-  
-        # if parent count not updated or some parents not stored 
-        if (commit_model.parents_count is None) or (len(parent_commits) != commit_model.parents_count):
-
-            if commit is None:
-                commit = self.github_handler.get_commit(repo, commit_sha=commit_model.sha)
-            
-            commit_text = None
-            if commit:
-                commit_text = self.github_handler.get_diff(commit)
-                
-
-            parent_len = commit.commit.parents
-            
-            most_similar_parent = commit.commit.parents[0]
-            distance_to_commit = float('inf')
-     
-  
-          
-            for parent in commit.commit.parents:
-                # only have one parent
-                if(parent_len == 1):
-                    most_similar_parent = parent
-                    break 
-                
-                # have multiple parents
-                parent_commit_text = None
-                parent_commit = self.github_handler.get_commit(repo, commit_sha=parent.sha)
-                if parent_commit:
-                    parent_commit_text = self.github_handler.get_diff(parent_commit)
-                #if all commit text available and they are the same
-                if commit_text and parent_commit_text:
-                    #if find a parent with identical diff content
-                    if parent_commit_text == commit_text:
-                        most_similar_parent = parent
-                        break 
-                    distance = Levenshtein.distance(commit_text, parent_commit_text)
-                    if distance < distance_to_commit:
-                        distance_to_commit = distance
-                        most_similar_parent = parent
-
-            #store the most similar parent in the database
-            parent_digest = self.update_parent_commit(commit_model, most_similar_parent)
-
-            if parent_digest not in parent_commits:
-                    session.add(CommitParentModel(commit_id=commit_model.id, parent_id=parent_digest))
-                    session.commit()
-            
-            #parent count become 1 instead of len(commit.commit.parents) because we only keep the most similar parent
-            commit_model.parents_count = 1
-            session.commit()
-            return True 
-         
-        return False
-    
-
-
 
     def update_commit(self, session: Session, repo: GithubRepository, commit_model: CommitModel):
         commit = None
@@ -485,9 +417,9 @@ class SourceHandler(HandlersInterface, Handler):
             self.update_commit_files(session, repo, commit_model, commit)
 
             if commit_model.kind != 'parent':
-                self.update_parent_commits_test(session, repo, commit, commit_model)
+                self.update_parent_commits(session, repo, commit, commit_model)
 
-    def add_metadata(self, language:str):
+    def add_metadata(self, language: str):
         self.init_global_context()
         session = self.app.db_con.get_session(scoped=True)
         if language:
@@ -495,9 +427,8 @@ class SourceHandler(HandlersInterface, Handler):
         else:
             print("no lanaguge")
             repo_query = session.query(RepositoryModel)
-      
-        for repo_model in tqdm(repo_query.all()):
 
+        for repo_model in tqdm(repo_query.all()):
 
             if self.has_commits(repo_model.commits):
                 self.app.log.info(f"Skipping {repo_model.owner}/{repo_model.name}...")
@@ -511,12 +442,10 @@ class SourceHandler(HandlersInterface, Handler):
                 continue
 
             if repo_model.available is None:
-             try:
-                self.update_awaiting_repository(session, repo, repo_model)
-             except Exception as exc:
-                self.app.log.error(f"Repository {repo.name} is empty.")
-            
-                
+                try:
+                    self.update_awaiting_repository(session, repo, repo_model)
+                except Exception as exc:
+                    self.app.log.error(f"Repository {repo.name} is empty.")
 
             for commit_model in tqdm(repo_model.commits):
                 self.update_commit(session, repo, commit_model)
