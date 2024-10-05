@@ -164,6 +164,7 @@ class SourceHandler(HandlersInterface, Handler):
 
         return response, file_path
 
+    # TODO: to be removed, nvdutils provides a similar function
     @staticmethod
     def is_commit_reference(ref: str):
         match = re.search(r'(github|bitbucket|gitlab|git).*(/commit/|/commits/)', ref)
@@ -173,6 +174,7 @@ class SourceHandler(HandlersInterface, Handler):
 
         return None
 
+    # TODO: to be removed, nvdutils provides a similar function
     def normalize_commit(self, ref: str) -> NormalizedCommit:
         """
             Normalizes commit reference

@@ -14,6 +14,19 @@ $ ./setup.sh
 $ docker run --shm-size 128MB --name sator_db -e POSTGRES_PASSWORD=user123 -e POSTGRES_USER=user1 -e POSTGRES_DB=sator -d -p 5432:5432 postgres
 ```
 
+### Usage
+
+Init database:
+```sh
+$ arepo -u 'postgresql://user1:user@127.0.0.1:5432/db' init
+```
+
+Populate database with NVD:
+```sh
+$ sator source -n nvd collect -s 1999 -e 2024
+```
+
+
 ### Docker 
 ```shell
  $ docker build --network="host" . -t sator
