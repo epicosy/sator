@@ -19,13 +19,12 @@ from sator.handlers.github import GithubHandler
 from sator.handlers.multi_task import MultiTaskHandler
 from sator.core.exc import SatorGithubError
 
-
 from github.Repository import Repository as GithubRepository
 from github.Commit import Commit as GithubCommit
 from github.File import File as GithubFile
 from github.GitCommit import GitCommit
 
-
+from arepo.models.common.scoring import CVSS2Model, CVSS3Model
 from arepo.models.common.vulnerability import VulnerabilityModel, TagModel, ReferenceModel
 from arepo.models.common.weakness import CWEModel
 from arepo.models.common.platform import ProductModel, VendorModel, ConfigurationModel, ConfigurationVulnerabilityModel
@@ -34,7 +33,6 @@ from arepo.models.vcs.core import RepositoryModel, CommitModel, CommitFileModel,
 from arepo.models.vcs.symbol import TopicModel, RepositoryTopicModel
 
 from sqlalchemy.orm import Session
-
 
 # captures pull requests and diffs
 HOST_OWNER_REPO_REGEX = '(?P<host>(git@|https:\/\/)([\w\.@]+)(\/|:))(?P<owner>[\w,\-,\_]+)\/(?P<repo>[\w,\-,\_]+)(.git){0,1}((\/){0,1})'
@@ -85,13 +83,18 @@ class SourceHandler(HandlersInterface, Handler):
         self.app.log.info("Loading configs IDs...")
         self.db_ids['configs'] = set([config.id for config in session.query(ConfigurationModel).all()])
         self.app.log.info("Loading config_vuln IDs...")
-        self.db_ids['config_vuln'] = set([f"{cv.configuration_id}_{cv.vulnerability_id}" for cv in session.query(ConfigurationVulnerabilityModel).all()])
+        self.db_ids['config_vuln'] = set([f"{cv.configuration_id}_{cv.vulnerability_id}" for cv in
+                                          session.query(ConfigurationVulnerabilityModel).all()])
         self.app.log.info("Loading products IDs...")
         self.db_ids['products'] = set([product.id for product in session.query(ProductModel).all()])
         self.app.log.info("Loading vendors IDs...")
         self.db_ids['vendors'] = set([vendor.id for vendor in session.query(VendorModel).all()])
         self.app.log.info("Loading commits files IDs...")
         self.db_ids['files'] = set([commit_file.id for commit_file in session.query(CommitFileModel).all()])
+        self.app.log.info("Loading CVSS2 IDs...")
+        self.db_ids['cvss2'] = set([cvss.id for cvss in session.query(CVSS2Model).all()])
+        self.app.log.info("Loading CVSS3 IDs...")
+        self.db_ids['cvss3'] = set([cvss.id for cvss in session.query(CVSS3Model).all()])
         self.app.log.info("Loading topics IDs...")
         self.db_ids['topics'] = set([topic.id for topic in session.query(TopicModel).all()])
 
@@ -258,7 +261,8 @@ class SourceHandler(HandlersInterface, Handler):
         # TODO: probably need to pass session as argument to query the repository
         repo_model.available = False
 
-        session.query(CommitModel).filter(CommitModel.repository_id == repo_model.id).update({CommitModel.available: False})
+        session.query(CommitModel).filter(CommitModel.repository_id == repo_model.id).update(
+            {CommitModel.available: False})
         session.commit()
 
     def update_awaiting_repository(self, session: Session, repo: GithubRepository, repo_model: RepositoryModel):
@@ -296,6 +300,9 @@ class SourceHandler(HandlersInterface, Handler):
             session.commit()
 
             return None
+        # todo check if it is a multiple parent commit
+        # select most similar parent commit to be the commit
+        # commit = most similar parent commit
 
         commit_model.author = commit.commit.author.name.strip()
         commit_model.message = commit.commit.message.strip()
@@ -380,6 +387,7 @@ class SourceHandler(HandlersInterface, Handler):
         parent_commits_query = session.query(CommitParentModel).filter(CommitParentModel.commit_id == commit_model.id)
         parent_commits = [cp.parent_id for cp in parent_commits_query.all()]
 
+        # if parent count not updated or some parents not stored
         if (commit_model.parents_count is None) or (len(parent_commits) != commit_model.parents_count):
 
             if commit is None:
@@ -411,13 +419,17 @@ class SourceHandler(HandlersInterface, Handler):
             if commit_model.kind != 'parent':
                 self.update_parent_commits(session, repo, commit, commit_model)
 
-    def add_metadata(self):
+    def add_metadata(self, language: str):
         self.init_global_context()
         session = self.app.db_con.get_session(scoped=True)
-
-        repo_query = session.query(RepositoryModel).filter(RepositoryModel.available.is_(True))
+        if language:
+            repo_query = session.query(RepositoryModel).filter(RepositoryModel.language == language)
+        else:
+            print("no lanaguge")
+            repo_query = session.query(RepositoryModel)
 
         for repo_model in tqdm(repo_query.all()):
+
             if self.has_commits(repo_model.commits):
                 self.app.log.info(f"Skipping {repo_model.owner}/{repo_model.name}...")
                 continue
@@ -430,7 +442,10 @@ class SourceHandler(HandlersInterface, Handler):
                 continue
 
             if repo_model.available is None:
-                self.update_awaiting_repository(session, repo, repo_model)
+                try:
+                    self.update_awaiting_repository(session, repo, repo_model)
+                except Exception as exc:
+                    self.app.log.error(f"Repository {repo.name} is empty.")
 
             for commit_model in tqdm(repo_model.commits):
                 self.update_commit(session, repo, commit_model)

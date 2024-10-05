@@ -54,11 +54,13 @@ class Source(Controller):
         arguments=[
             (['-gt', '--tokens'], {'help': 'Comma-separated list of tokens for the GitHub API.', 'type': str,
                                    'required': True}),
+            (['-l', '--language'], {'help': 'Programming language', 'type': str, 'required': False,
+                                    'choices': ['JavaScript', 'Java', 'C', 'C++']}),
         ]
     )
     def metadata(self):
         """Metadata sub-command."""
-        self.app.handler.get('handlers', self.app.pargs.name, setup=True).add_metadata()
+        self.app.handler.get('handlers', self.app.pargs.name, setup=True).add_metadata(self.app.pargs.language)
 
     @ex(
         help='Gets and parses the diffs for repositories in a given programming language',
