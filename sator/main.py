@@ -6,7 +6,7 @@ from .controllers.source import Source
 from pathlib import Path
 from sator.handlers.multi_task import MultiTaskHandler
 from sator.handlers.nvd import NVDHandler
-from sator.handlers.nvdapi import NVDAPIHandler
+from sator.handlers.nvd_api import NVDAPIHandler
 from sator.core.interfaces import HandlersInterface
 from sator.handlers.github import GithubHandler
 from sator.handlers.parser import DiffParserHandler
