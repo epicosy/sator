@@ -1,20 +1,20 @@
 import json
-from typing import List
+from collections import defaultdict
+from typing import List, Dict
 
 from sqlalchemy.exc import IntegrityError
 from tqdm import tqdm
 
-from sator.core.exc import SatorError
 from sator.handlers.source import SourceHandler
 
-from nvdutils.core.loaders.json_loader import JSONFeedsLoader
-from nvdutils.types.configuration import Configuration
-from nvdutils.types.reference import Reference, CommitReference
-from nvdutils.types.weakness import Weakness, WeaknessType
 from nvdutils.types.cve import CVE
+from nvdutils.types.configuration import Configuration
 from nvdutils.types.cvss import CVSSType, CVSSv3, CVSSv2
+from nvdutils.types.weakness import Weakness, WeaknessType
+from nvdutils.types.reference import Reference, CommitReference
 from nvdutils.types.options import CVEOptions, ConfigurationOptions
 
+from nvdutils.core.loaders.json_loader import JSONFeedsLoader
 
 from arepo.models.vcs.core import RepositoryModel, CommitModel
 from arepo.models.common.scoring import CVSS3Model, CVSS2Model
@@ -34,115 +34,209 @@ class NVDHandler(SourceHandler):
         cve_options = CVEOptions(config_options=ConfigurationOptions(has_config=True, has_vulnerable_products=True),
                                  start=start, end=end)
         loader = JSONFeedsLoader(data_path='~/.nvdutils/nvd-json-data-feeds', options=cve_options, verbose=True)
-        # TODO. load only files by year
-        loader.load()
-        self.app.log.info(f"Loaded {len(loader.records)} records.")
 
-        # TODO: Need to initialize the database connection somewhere
-        # self.app.db_con.init(self.app.db_con.uri)
         self.init_global_context()
 
         # process files in batch by year
-        for cve_id, cve in tqdm(loader.records.items()):
-            self.multi_task_handler.add(cve_id=cve_id, cve=cve)
+        for year, cve_data in tqdm(loader.load(by_year=True, eager=False)):
+            self.app.log.info(f"Loaded {len(cve_data)} records.")
 
-        self.multi_task_handler(func=self.insert)
-        self.multi_task_handler.results()
+            # split the cve_data in batches of 100
+            batches = self.split_dict(cve_data, 500)
+            self.app.log.info(f"Processing {len(cve_data)} records for {year}. Batches {len(batches)}.")
 
-    def insert(self, cve_id: str, cve: CVE):
-        session = self.app.db_con.get_session(scoped=True)
+            for batch in batches:
+                self.multi_task_handler.add(cve_data=batch)
 
-        try:
-            self.insert_vulnerability(cve_id, cve, session)
+                self.multi_task_handler(func=self.process)
+                self.app.log.info(f"Inserted {len(batch)} records for year {year}.")
 
-            weaknesses = cve.get_weaknesses(weakness_type=WeaknessType.Primary, source="nvd@nist.gov")
-            self.insert_cwe(cve_id, weaknesses, session)
+                for res in self.multi_task_handler.results():
+                    session = self.app.db_con.get_session(scoped=True)
 
+                    try:
+                        for key, values in res.items():
+                            session.bulk_save_objects(values)
+
+                            if key in ['refs', 'repos', 'vendors', 'products', 'configs']:
+                                session.flush()
+
+                        session.commit()  # Commit after processing CVEs
+                    except IntegrityError as ie:
+                        session.rollback()  # Rollback in case of an error
+                    finally:
+                        session.close()  # Ensure session is closed after processing
+
+                del self.multi_task_handler
+
+    @staticmethod
+    def split_dict(cve_data: Dict[str, CVE], batch_size: int) -> List[Dict[str, CVE]]:
+        batches = []
+        batch = {}
+        count = 0
+
+        for cve_id, cve in cve_data.items():
+            if count == batch_size:
+                batches.append(batch)
+                batch = {}
+                count = 0
+
+            batch[cve_id] = cve
+            count += 1
+
+        if count > 0:
+            batches.append(batch)
+
+        return batches
+
+    def process(self, cve_data: Dict[str, CVE]):
+        results = defaultdict(list)
+
+        for cve_id, cve in cve_data.items():
+            results['vulns'].append(self.get_vulnerability(cve_id, cve))
+
+            weaknesses = cve.get_weaknesses(
+                weakness_type=WeaknessType.Primary,
+                source="nvd@nist.gov"
+            )
+
+            results['cwes'].extend(self.get_cwe(cve_id, weaknesses))
             commits, references = cve.get_separated_references(vcs='github')
-            ids_to_insert = self.insert_references(cve_id, references, session)
-            session.flush()
+            tags, refs = self.get_references(cve_id, references)
+            results['refs'].extend(refs)
+            results['tags'].extend(tags)
 
-            for ref_id, tag_ids in ids_to_insert.items():
-                for tag_id in tag_ids:
-                    session.add(ReferenceTagModel(reference_id=ref_id, tag_id=tag_id))
+            repo_models, commit_models = self.get_commits(cve_id, commits)
 
-            self.insert_commits(cve_id, commits, session)
+            results['repos'].extend(repo_models)
+            results['commits'].extend(commit_models)
 
-            ids_to_insert = self.insert_configurations(cve_id, cve.configurations, session)
-            session.flush()
+            # TODO: there must be a better way to handle this
+            configs, vendors, products, rels = self.get_configurations(cve_id, cve.configurations)
 
-            for config_vuln, cpe_id in ids_to_insert.items():
-                if not self.has_id(config_vuln, 'config_vuln'):
-                    session.add(ConfigurationVulnerabilityModel(configuration_id=cpe_id,
-                                                                vulnerability_id=cve_id))
-                    self.add_id(config_vuln, 'config_vuln')
+            results['vendors'].extend(vendors)
+            results['products'].extend(products)
+            results['configs'].extend(configs)
+            results['rels'].extend(rels)
 
-            cvss2_metrics = cve.get_metrics('cvssMetricV2', CVSSType.Primary)
-            self.insert_v2_metrics(cve_id, cvss2_metrics, session)
+            results['metrics'].extend(
+                self.get_v2_metrics(
+                    cve_id,
+                    cve.get_metrics('cvssMetricV2', CVSSType.Primary)
+                )
+            )
 
-            cvss31_metrics = cve.get_metrics('cvssMetricV31', CVSSType.Primary)
-            self.insert_v3_metrics(cve_id, cvss31_metrics, session)
+            results['metrics'].extend(
+                self.get_v3_metrics(
+                    cve_id,
+                    cve.get_metrics('cvssMetricV31', CVSSType.Primary)
+                )
+            )
 
-            cvss30_metrics = cve.get_metrics('cvssMetricV30', CVSSType.Primary)
-            self.insert_v3_metrics(cve_id, cvss30_metrics, session)
+            results['metrics'].extend(
+                self.get_v3_metrics(
+                    cve_id,
+                    cve.get_metrics('cvssMetricV30', CVSSType.Primary)
+                )
+            )
 
-            session.commit()  # Commit after processing each CVE
-        except IntegrityError as ie:
-            self.app.log.warning(f"Integrity error for {cve_id}: {ie}")
-            session.rollback()  # Rollback in case of an error
-        finally:
-            session.close()  # Ensure session is closed after processing
+        return results
 
-    def insert_vulnerability(self, cve_id: str, cve: CVE, session):
+    def get_vulnerability(self, cve_id: str, cve: CVE):
         if not self.has_id(cve_id, 'vulns'):
-            # TODO: remove severity, impact, exploitability
-            session.add(VulnerabilityModel(id=cve_id, description=cve.get_eng_description().value,
-                                           assigner=cve.source, severity=None, impact=None, exploitability=None,
-                                           published_date=cve.published_date, last_modified_date=cve.last_modified_date))
-
             self.add_id(cve_id, 'vulns')
 
-    # TODO: database needs to be updated to accommodate both types of weaknesses
-    def insert_cwe(self, cve_id: str, weaknesses: List[Weakness], session):
+            return VulnerabilityModel(
+                id=cve_id,
+                description=cve.get_eng_description().value,
+                assigner=cve.source,
+                severity=None, impact=None, exploitability=None,  # TODO: remove severity, impact, exploitability
+                published_date=cve.published_date,
+                last_modified_date=cve.last_modified_date
+            )
+
+    # TODO: database needs to accommodate both types of weaknesses
+    def get_cwe(self, cve_id: str, weaknesses: List[Weakness]):
+        vuln_cwe = []
+
         if not self.has_id(cve_id, 'vulns'):
             for weakness in weaknesses:
                 for cwe_id in weakness.get_numeric_values():
                     if cwe_id in self.cwe_ids:
-                        session.add(VulnerabilityCWEModel(vulnerability_id=cve_id, cwe_id=cwe_id))
+                        vuln_cwe.append(
+                            VulnerabilityCWEModel(
+                                vulnerability_id=cve_id,
+                                cwe_id=cwe_id
+                            )
+                        )
 
-    def insert_references(self, cve_id: str, references: List[Reference], session):
-        ids_to_insert = {}
+        return vuln_cwe
+
+    def get_references(self, cve_id: str, references: List[Reference]):
+        refs = []
+        tags = []
 
         for ref in references:
             ref_digest = self.get_digest(ref.url)
-            ids_to_insert[ref_digest] = []
 
             if not self.has_id(ref_digest, 'refs'):
                 self.add_id(ref_digest, 'refs')
-                session.add(ReferenceModel(id=ref_digest, url=ref.url, vulnerability_id=cve_id))
+                refs.append(
+                    ReferenceModel(
+                        id=ref_digest,
+                        url=ref.url,
+                        vulnerability_id=cve_id
+                    )
+                )
 
                 for tag in ref.tags:
-                    ids_to_insert[ref_digest].append(self.tag_ids[tag])
+                    tags.append(
+                        ReferenceTagModel(
+                            reference_id=ref_digest,
+                            tag_id=self.tag_ids[tag]
+                        )
+                    )
 
-        return ids_to_insert
+        return tags, refs
 
-    def insert_commits(self, cve_id: str, commits: List[CommitReference], session):
+    def get_commits(self, cve_id: str, commits: List[CommitReference]):
+        repo_models = []
+        commit_models = []
+
         for commit in commits:
             commit_digest = self.get_digest(commit.processed_url)
             repo_digest = self.get_digest(f"{commit.owner}/{commit.repo}")
 
             if not self.has_id(repo_digest, 'repos'):
                 self.add_id(repo_digest, 'repos')
-                session.add(RepositoryModel(id=repo_digest, name=commit.repo, owner=commit.owner))
+                repo_models.append(
+                    RepositoryModel(
+                        id=repo_digest,
+                        name=commit.repo,
+                        owner=commit.owner
+                    )
+                )
 
             if not self.has_id(commit_digest, 'commits'):
                 self.add_id(commit_digest, 'commits')
-                session.add(CommitModel(id=commit_digest, url=commit.processed_url, sha=commit.sha,
-                                        kind='|'.join(commit.tags), vulnerability_id=cve_id,
-                                        repository_id=repo_digest))
+                commit_models.append(
+                    CommitModel(
+                        id=commit_digest,
+                        url=commit.processed_url,
+                        sha=commit.sha,
+                        kind='|'.join(commit.tags),
+                        vulnerability_id=cve_id,
+                        repository_id=repo_digest
+                    )
+                )
 
-    def insert_configurations(self, cve_id: str, configurations: List[Configuration], session):
-        ids_to_insert = {}
+        return repo_models, commit_models
+
+    def get_configurations(self, cve_id: str, configurations: List[Configuration]):
+        configs = []
+        vendors = []
+        products = []
+        rels = []
 
         for config in configurations:
             # TODO: this needs a Node table
@@ -154,40 +248,66 @@ class NVDHandler(SourceHandler):
                     if not self.has_id(cpe_match.criteria_id, 'configs'):
                         self.add_id(cpe_match.criteria_id, 'configs')
 
-                        # TODO: should be inserted in separate
                         vendor_digest = self.get_digest(cpe_match.cpe.vendor)
 
                         if not self.has_id(vendor_digest, 'vendors'):
                             self.add_id(vendor_digest, 'vendors')
-                            session.add(VendorModel(id=vendor_digest, name=cpe_match.cpe.vendor))
+                            vendors.append(
+                                VendorModel(
+                                    id=vendor_digest,
+                                    name=cpe_match.cpe.vendor
+                                )
+                            )
 
-                        # TODO: should be inserted in separate
                         product_digest = self.get_digest(f"{cpe_match.cpe.vendor}:{cpe_match.cpe.product}")
 
                         if not self.has_id(product_digest, 'products'):
                             self.add_id(product_digest, 'products')
-                            session.add(ProductModel(id=product_digest, name=cpe_match.cpe.product,
-                                                     vendor_id=vendor_digest, product_type_id=8))
+                            products.append(
+                                ProductModel(
+                                    id=product_digest,
+                                    name=cpe_match.cpe.product,
+                                    vendor_id=vendor_digest,
+                                    product_type_id=8
+                                )
+                            )
 
-                        # TODO: update to CPEModel
-                        session.add(ConfigurationModel(id=cpe_match.criteria_id, vulnerable=cpe_match.vulnerable,
-                                                       part=cpe_match.cpe.part, version=cpe_match.cpe.version,
-                                                       update=cpe_match.cpe.update, edition=cpe_match.cpe.edition,
-                                                       language=cpe_match.cpe.language,
-                                                       sw_edition=cpe_match.cpe.sw_edition,
-                                                       target_sw=cpe_match.cpe.target_sw,
-                                                       target_hw=cpe_match.cpe.target_hw,
-                                                       other=cpe_match.cpe.other,
-                                                       vendor_id=vendor_digest, product_id=product_digest))
+                        # TODO: the vulnerability_id should not be part of the ConfigurationModel since configurations
+                        # can occur in multiple vulnerabilities
+                        # TODO: update ConfigurationModel to CPEModel
+                        configs.append(
+                            ConfigurationModel(
+                                id=cpe_match.criteria_id,
+                                vulnerable=cpe_match.vulnerable,
+                                part=cpe_match.cpe.part,
+                                version=cpe_match.cpe.version,
+                                update=cpe_match.cpe.update,
+                                edition=cpe_match.cpe.edition,
+                                language=cpe_match.cpe.language,
+                                sw_edition=cpe_match.cpe.sw_edition,
+                                target_sw=cpe_match.cpe.target_sw,
+                                target_hw=cpe_match.cpe.target_hw,
+                                other=cpe_match.cpe.other,
+                                vendor_id=vendor_digest,
+                                product_id=product_digest
+                            )
+                        )
 
-                        # Flush to ensure ConfigurationModel is written before continuing
-                        session.flush()
+                        if not self.has_id(config_vuln, 'config_vuln'):
+                            self.add_id(config_vuln, 'config_vuln')
 
-                        ids_to_insert[config_vuln] = cpe_match.criteria_id
+                            rels.append(
+                                ConfigurationVulnerabilityModel(
+                                    configuration_id=cpe_match.criteria_id,
+                                    vulnerability_id=cve_id
+                                )
+                            )
 
-        return ids_to_insert
+        return configs, vendors, products, rels
 
-    def insert_v2_metrics(self, cve_id: str, cvss_v2: List[CVSSv2], session):
+    def get_v2_metrics(self, cve_id: str, cvss_v2: List[CVSSv2]):
+        metrics = []
+
         for cvss in cvss_v2:
             cvss_dict = cvss.to_dict()
             # TODO: cve_id should not be part of the id
@@ -196,32 +316,36 @@ class NVDHandler(SourceHandler):
 
             if not self.has_id(cvss_v2_id, 'cvss2'):
                 self.add_id(cvss_v2_id, 'cvss2')
-                cvss2_instance = CVSS2Model(
-                    id=cvss_v2_id,
-                    vulnerability_id=cve_id,
-                    cvssData_version=cvss.version,
-                    cvssData_vectorString=cvss.vector,
-                    cvssData_accessVector=cvss.access_vector,
-                    cvssData_accessComplexity=cvss.access_complexity,
-                    cvssData_authentication=cvss.authentication,
-                    cvssData_confidentialityImpact=cvss.impact.confidentiality,
-                    cvssData_integrityImpact=cvss.impact.integrity,
-                    cvssData_availabilityImpact=cvss.impact.availability,
-                    cvssData_baseScore=cvss.scores.base,
-                    baseSeverity=cvss.base_severity,
-                    exploitabilityScore=cvss.scores.exploitability,
-                    impactScore=cvss.scores.impact,
-                    acInsufInfo=cvss.ac_insuf_info,
-                    obtainAllPrivilege=cvss.obtain_all_privilege,
-                    obtainUserPrivilege=cvss.obtain_user_privilege,
-                    obtainOtherPrivilege=cvss.obtain_other_privilege,
-                    userInteractionRequired=cvss.user_interaction_required
+                metrics.append(
+                    CVSS2Model(
+                        id=cvss_v2_id,
+                        vulnerability_id=cve_id,
+                        cvssData_version=cvss.version,
+                        cvssData_vectorString=cvss.vector,
+                        cvssData_accessVector=cvss.access_vector,
+                        cvssData_accessComplexity=cvss.access_complexity,
+                        cvssData_authentication=cvss.authentication,
+                        cvssData_confidentialityImpact=cvss.impact.confidentiality,
+                        cvssData_integrityImpact=cvss.impact.integrity,
+                        cvssData_availabilityImpact=cvss.impact.availability,
+                        cvssData_baseScore=cvss.scores.base,
+                        baseSeverity=cvss.base_severity,
+                        exploitabilityScore=cvss.scores.exploitability,
+                        impactScore=cvss.scores.impact,
+                        acInsufInfo=cvss.ac_insuf_info,
+                        obtainAllPrivilege=cvss.obtain_all_privilege,
+                        obtainUserPrivilege=cvss.obtain_user_privilege,
+                        obtainOtherPrivilege=cvss.obtain_other_privilege,
+                        userInteractionRequired=cvss.user_interaction_required
+                    )
                 )
-                session.add(cvss2_instance)
 
                 # TODO: add instance with cvss_v2_id and vulnerability_id to CVSS2Vulnerability table
+        return metrics
 
-    def insert_v3_metrics(self, cve_id: str, cvss_v3: List[CVSSv3], session):
+    def get_v3_metrics(self, cve_id: str, cvss_v3: List[CVSSv3]):
+        metrics = []
+
         for cvss in cvss_v3:
             cvss_dict = cvss.to_dict()
             # TODO: cve_id should not be part of the id
@@ -232,27 +356,29 @@ class NVDHandler(SourceHandler):
             if not self.has_id(cvss_v3_id, 'cvss3'):
                 self.add_id(cvss_v3_id, 'cvss3')
                 # TODO: vulnerability_id should not be part of the CVSS3 table
-                cvss3_instance = CVSS3Model(
-                    id=cvss_v3_id,
-                    vulnerability_id=cve_id,
-                    exploitabilityScore=cvss.scores.exploitability,
-                    impactScore=cvss.scores.impact,
-                    cvssData_version=cvss.version,
-                    cvssData_vectorString=cvss.vector,
-                    cvssData_attackVector=cvss.attack_vector,
-                    cvssData_attackComplexity=cvss.attack_complexity,
-                    cvssData_privilegesRequired=cvss.privileges_required,
-                    cvssData_userInteraction=cvss.user_interaction,
-                    cvssData_scope=cvss.scope,
-                    cvssData_confidentialityImpact=cvss.impact.confidentiality,
-                    cvssData_integrityImpact=cvss.impact.integrity,
-                    cvssData_availabilityImpact=cvss.impact.availability,
-                    cvssData_baseScore=cvss.scores.base,
-                    cvssData_baseSeverity=cvss.base_severity
+                metrics.append(
+                    CVSS3Model(
+                        id=cvss_v3_id,
+                        vulnerability_id=cve_id,
+                        exploitabilityScore=cvss.scores.exploitability,
+                        impactScore=cvss.scores.impact,
+                        cvssData_version=cvss.version,
+                        cvssData_vectorString=cvss.vector,
+                        cvssData_attackVector=cvss.attack_vector,
+                        cvssData_attackComplexity=cvss.attack_complexity,
+                        cvssData_privilegesRequired=cvss.privileges_required,
+                        cvssData_userInteraction=cvss.user_interaction,
+                        cvssData_scope=cvss.scope,
+                        cvssData_confidentialityImpact=cvss.impact.confidentiality,
+                        cvssData_integrityImpact=cvss.impact.integrity,
+                        cvssData_availabilityImpact=cvss.impact.availability,
+                        cvssData_baseScore=cvss.scores.base,
+                        cvssData_baseSeverity=cvss.base_severity
+                    )
                 )
-                session.add(cvss3_instance)
 
                 # TODO: add instance with cvss_v3_id and vulnerability_id to CVSS3Vulnerability table
+        return metrics
 
 
 def load(app):
