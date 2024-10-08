@@ -34,7 +34,7 @@ dependencies = [
     "cpeparser~=0.0.2",
     "beautifulsoup4~=4.12.2",
     "arepo==2.1.2",
-    "nvdutils==2.3.1",
+    "nvdutils==2.3.2",
 ]
 
 [project.optional-dependencies]

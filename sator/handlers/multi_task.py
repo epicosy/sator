@@ -124,12 +124,15 @@ class MultiTaskHandler(HandlersInterface, Handler):
         # sort by the order of insertion in the queue
         self.runner.finished.sort(key=lambda task: task.id)
 
-    def results(self, expand: bool = False, skip_none: bool = True):
+    def results(self, expand: bool = False, skip_none: bool = True, get_ids: bool = False):
         if not self._results:
-            self._results = self.runner.results(skip_none)
+            self._results = self.runner.results(skip_none, get_ids)
 
             if expand:
-                self._results = [res for task in self._results for res in task if not (skip_none and (res is None))]
+                if get_ids:
+                    self._results = [(task.id, task.result) for task in self.runner.finished if not (skip_none and (task.result is None))]
+                else:
+                    self._results = [res for task in self._results for res in task if not (skip_none and (res is None))]
 
         return self._results
 
