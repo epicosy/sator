@@ -14,6 +14,24 @@ $ ./setup.sh
 $ docker run --shm-size 128MB --name sator_db -e POSTGRES_PASSWORD=user123 -e POSTGRES_USER=user1 -e POSTGRES_DB=sator -d -p 5432:5432 postgres
 ```
 
+### Usage
+
+Set up URI string in environment variable:
+```sh
+$ export SQLALCHEMY_DATABASE_URI='postgresql://user:password@127.0.0.1:5432/db'
+```
+
+Init database (optional, if not already done):
+```sh
+$ arepo -u $SQLALCHEMY_DATABASE_URI init
+```
+
+Populate database with NVD:
+```sh
+$ sator source -n nvd collect -s 1999 -e 2024
+```
+
+
 ### Docker 
 ```shell
  $ docker build --network="host" . -t sator

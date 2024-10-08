@@ -1,10 +1,6 @@
-import hashlib
-import re
 import shutil
 import requests
 import functools
-import threading
-import dataclasses
 
 from tqdm import tqdm
 from pathlib import Path
@@ -13,39 +9,20 @@ from requests import Response
 from typing import Union, Tuple, List
 from urllib.parse import urlparse
 
-from sator.core.exc import SatorError
 from sator.core.interfaces import HandlersInterface
 from sator.handlers.github import GithubHandler
-from sator.handlers.multi_task import MultiTaskHandler
 from sator.core.exc import SatorGithubError
-
+from sator.utils.misc import get_digest
 
 from github.Repository import Repository as GithubRepository
 from github.Commit import Commit as GithubCommit
 from github.File import File as GithubFile
 from github.GitCommit import GitCommit
 
-
-from arepo.models.common.vulnerability import VulnerabilityModel, TagModel, ReferenceModel
-from arepo.models.common.weakness import CWEModel
-from arepo.models.common.platform import ProductModel, VendorModel, ConfigurationModel, ConfigurationVulnerabilityModel
-
 from arepo.models.vcs.core import RepositoryModel, CommitModel, CommitFileModel, CommitParentModel
 from arepo.models.vcs.symbol import TopicModel, RepositoryTopicModel
 
 from sqlalchemy.orm import Session
-
-
-# captures pull requests and diffs
-HOST_OWNER_REPO_REGEX = '(?P<host>(git@|https:\/\/)([\w\.@]+)(\/|:))(?P<owner>[\w,\-,\_]+)\/(?P<repo>[\w,\-,\_]+)(.git){0,1}((\/){0,1})'
-
-
-@dataclasses.dataclass
-class NormalizedCommit:
-    owner: str
-    repo: str
-    sha: str
-    url: str
 
 
 class SourceHandler(HandlersInterface, Handler):
@@ -54,67 +31,14 @@ class SourceHandler(HandlersInterface, Handler):
 
     def __init__(self, **kw):
         super().__init__(**kw)
-        self._multi_task_handler: MultiTaskHandler = None
         self._github_handler: GithubHandler = None
-        self.db_ids = {}
-        self.tag_ids = {}
-        self.cwe_ids = []
-        self.lock = threading.Lock()
-
-    def init_global_context(self):
-        # TODO: too complex, simplify
-        self.app.log.info("Initializing global context...")
-        session = self.app.db_con.get_session()
-        # Setup available tags and CWE-IDs
-
-        for tag in session.query(TagModel).all():
-            self.tag_ids[tag.name] = tag.id
-
-        for cwe in session.query(CWEModel).all():
-            self.cwe_ids.append(cwe.id)
-
-        # Setup IDs in database
-        self.app.log.info("Loading vuln IDs...")
-        self.db_ids['vulns'] = set([cve.id for cve in session.query(VulnerabilityModel).all()])
-        self.app.log.info("Loading ref IDs...")
-        self.db_ids['refs'] = set([ref.id for ref in session.query(ReferenceModel).all()])
-        self.app.log.info("Loading repo IDs...")
-        self.db_ids['repos'] = set([repo.id for repo in session.query(RepositoryModel).all()])
-        self.app.log.info("Loading commits IDs...")
-        self.db_ids['commits'] = set([commit.id for commit in session.query(CommitModel).all()])
-        self.app.log.info("Loading configs IDs...")
-        self.db_ids['configs'] = set([config.id for config in session.query(ConfigurationModel).all()])
-        self.app.log.info("Loading config_vuln IDs...")
-        self.db_ids['config_vuln'] = set([f"{cv.configuration_id}_{cv.vulnerability_id}" for cv in session.query(ConfigurationVulnerabilityModel).all()])
-        self.app.log.info("Loading products IDs...")
-        self.db_ids['products'] = set([product.id for product in session.query(ProductModel).all()])
-        self.app.log.info("Loading vendors IDs...")
-        self.db_ids['vendors'] = set([vendor.id for vendor in session.query(VendorModel).all()])
-        self.app.log.info("Loading commits files IDs...")
-        self.db_ids['files'] = set([commit_file.id for commit_file in session.query(CommitFileModel).all()])
-        self.app.log.info("Loading topics IDs...")
-        self.db_ids['topics'] = set([topic.id for topic in session.query(TopicModel).all()])
-
-    def has_id(self, _id: str, _type: str) -> bool:
-        return _id in self.db_ids[_type]
-
-    def add_id(self, _id: str, _type: str):
-        with self.lock:
-            self.db_ids[_type].add(_id)
-
-    @staticmethod
-    def get_digest(string: str):
-        return hashlib.md5(string.encode('utf-8')).hexdigest()
+        self._database_handler = None
 
     @property
-    def multi_task_handler(self):
-        if not self._multi_task_handler:
-            self._multi_task_handler = self.app.handler.get('handlers', 'multi_task', setup=True)
-        return self._multi_task_handler
-
-    @multi_task_handler.deleter
-    def multi_task_handler(self):
-        self._multi_task_handler = None
+    def database_handler(self):
+        if not self._database_handler:
+            self._database_handler = self.app.handler.get('handlers', 'database', setup=True)
+        return self._database_handler
 
     @property
     def github_handler(self):
@@ -162,80 +86,6 @@ class SourceHandler(HandlersInterface, Handler):
         return response, file_path
 
     @staticmethod
-    def is_commit_reference(ref: str):
-        match = re.search(r'(github|bitbucket|gitlab|git).*(/commit/|/commits/)', ref)
-
-        if match:
-            return match.group(1)
-
-        return None
-
-    def normalize_commit(self, ref: str) -> NormalizedCommit:
-        """
-            Normalizes commit reference
-            returns tuple containing clean_commit, sha
-        """
-
-        if "CONFIRM:" in ref:
-            # e.g., https://github.com/{owner}/{repo}/commit/{sha}CONFIRM:
-            ref = ref.replace("CONFIRM:", '')
-
-        # FIXME: WTF? Find why...
-        if "//commit" in ref:
-            ref = ref.replace("//commit", "/commit")
-
-        match_sha = re.search(r"\b[0-9a-f]{5,40}\b", ref)
-
-        if not match_sha:
-            # e.g., https://github.com/intelliants/subrion/commits/develop
-            # e.g., https://gitlab.gnome.org/GNOME/gthumb/commits/master/extensions/cairo_io/cairo-image-surface-jpeg.c
-            # e.g., https://github.com/{owner}/{repo}/commits/{branch}
-            raise SatorError(f"Could not normalize commit")
-
-        if 'git://' in ref and 'github.com' in ref:
-            ref = ref.replace('git://', 'https://')
-
-        if '/master?' in ref:
-            # e.g., https://github.com/{owner}/{repo}/commits/master?after={sha}+{no_commits}
-            raise SatorError(f"Could not normalize commit")
-
-        if '#' in ref and ('#comments' in ref or '#commitcomment' in ref):
-            # e.g., https://github.com/{owner}/{repo}/commit/{sha}#commitcomment-{id}
-            ref = ref.split('#')[0]
-
-        if '.patch' in ref:
-            # e.g., https://github.com/{owner}/{repo}/commit/{sha}.patch
-            ref = ref.replace('.patch', '')
-        if '%23' in ref:
-            # e.g., https://github.com/absolunet/kafe/commit/c644c798bfcdc1b0bbb1f0ca59e2e2664ff3fdd0%23diff
-            # -f0f4b5b19ad46588ae9d7dc1889f681252b0698a4ead3a77b7c7d127ee657857
-            ref = ref.replace('%23', '#')
-
-        # the #diff part in the url is used to specify the section of the page to display, for now is not relevant
-        if "#diff" in ref:
-            ref = ref.split("#")[0]
-        if "?w=1" in ref:
-            ref = ref.replace("?w=1", "")
-        if "?branch=" in ref:
-            ref = ref.split("?branch=")[0]
-        if "?diff=split" in ref:
-            ref = ref.replace("?diff=split", "")
-        if re.match(r".*(,|/)$", ref):
-            if "/" in ref:
-                ref = ref[0:-1]
-            else:
-                ref = ref.replace(",", "")
-        elif ")" in ref:
-            ref = ref.replace(")", "")
-
-        match = re.search(HOST_OWNER_REPO_REGEX, ref)
-
-        if not match:
-            raise SatorError(f"Could not extract owner/repo from commit url")
-
-        return NormalizedCommit(owner=match['owner'], repo=match['repo'], sha=match_sha.group(0), url=ref)
-
-    @staticmethod
     def has_commits(commits: List[CommitModel]):
         # check if repo has all commits available and has related files and parents
         for c in commits:
@@ -258,7 +108,8 @@ class SourceHandler(HandlersInterface, Handler):
         # TODO: probably need to pass session as argument to query the repository
         repo_model.available = False
 
-        session.query(CommitModel).filter(CommitModel.repository_id == repo_model.id).update({CommitModel.available: False})
+        session.query(CommitModel).filter(CommitModel.repository_id == repo_model.id).update(
+            {CommitModel.available: False})
         session.commit()
 
     def update_awaiting_repository(self, session: Session, repo: GithubRepository, repo_model: RepositoryModel):
@@ -274,10 +125,10 @@ class SourceHandler(HandlersInterface, Handler):
         repo_model.commits_count = repo.get_commits().totalCount
 
         for topic in repo.topics:
-            topic_digest = self.get_digest(topic)
+            topic_digest = get_digest(topic)
 
-            if not self.has_id(topic_digest, 'topics'):
-                self.add_id(topic_digest, 'topics')
+            if not self.database_handler.has_id(topic_digest, TopicModel.__tablename__):
+                self.database_handler.add_id(topic_digest, TopicModel.__tablename__)
                 session.add(TopicModel(id=topic_digest, name=topic))
                 session.commit()
 
@@ -296,6 +147,9 @@ class SourceHandler(HandlersInterface, Handler):
             session.commit()
 
             return None
+        # todo check if it is a multiple parent commit
+        # select most similar parent commit to be the commit
+        # commit = most similar parent commit
 
         commit_model.author = commit.commit.author.name.strip()
         commit_model.message = commit.commit.message.strip()
@@ -315,11 +169,11 @@ class SourceHandler(HandlersInterface, Handler):
         return commit
 
     def update_commit_file(self, commit_id: str, commit_sha: str, file: GithubFile) -> str:
-        file_digest = self.get_digest(f"{commit_sha}/{file.filename}")
+        file_digest = get_digest(f"{commit_sha}/{file.filename}")
         patch = None
         session = self.app.db_con.get_session()
 
-        if not self.has_id(file_digest, 'files'):
+        if not self.database_handler.has_id(file_digest, CommitFileModel.__tablename__):
             if file.patch:
                 patch = file.patch.strip()
                 # TODO: fix this hack
@@ -332,7 +186,7 @@ class SourceHandler(HandlersInterface, Handler):
 
             session.add(commit_file)
             session.commit()
-            self.add_id(file_digest, 'files')
+            self.database_handler.add_id(file_digest, CommitFileModel.__tablename__)
 
         return file_digest
 
@@ -363,14 +217,14 @@ class SourceHandler(HandlersInterface, Handler):
 
     def update_parent_commit(self, commit_model: CommitModel, parent: GitCommit) -> str:
         session = self.app.db_con.get_session()
-        parent_digest = self.get_digest(parent.url)
+        parent_digest = get_digest(parent.url)
 
-        if not self.has_id(parent_digest, 'commits'):
+        if not self.database_handler.has_id(parent_digest, CommitFileModel.__tablename__):
             session.add(CommitModel(id=parent_digest, kind='parent', url=parent.url, sha=parent.sha,
                                     repository_id=commit_model.repository_id,
                                     vulnerability_id=commit_model.vulnerability_id))
             session.commit()
-            self.add_id(parent_digest, 'commits')
+            self.database_handler.add_id(parent_digest, CommitFileModel.__tablename__)
 
         return parent_digest
 
@@ -380,6 +234,7 @@ class SourceHandler(HandlersInterface, Handler):
         parent_commits_query = session.query(CommitParentModel).filter(CommitParentModel.commit_id == commit_model.id)
         parent_commits = [cp.parent_id for cp in parent_commits_query.all()]
 
+        # if parent count not updated or some parents not stored
         if (commit_model.parents_count is None) or (len(parent_commits) != commit_model.parents_count):
 
             if commit is None:
@@ -411,13 +266,18 @@ class SourceHandler(HandlersInterface, Handler):
             if commit_model.kind != 'parent':
                 self.update_parent_commits(session, repo, commit, commit_model)
 
-    def add_metadata(self):
-        self.init_global_context()
+    def add_metadata(self, language: str):
+        self.database_handler.init_global_context()
         session = self.app.db_con.get_session(scoped=True)
 
-        repo_query = session.query(RepositoryModel).filter(RepositoryModel.available.is_(True))
+        if language:
+            repo_query = session.query(RepositoryModel).filter(RepositoryModel.language == language)
+        else:
+            print("no lanaguge")
+            repo_query = session.query(RepositoryModel)
 
         for repo_model in tqdm(repo_query.all()):
+
             if self.has_commits(repo_model.commits):
                 self.app.log.info(f"Skipping {repo_model.owner}/{repo_model.name}...")
                 continue
@@ -430,7 +290,10 @@ class SourceHandler(HandlersInterface, Handler):
                 continue
 
             if repo_model.available is None:
-                self.update_awaiting_repository(session, repo, repo_model)
+                try:
+                    self.update_awaiting_repository(session, repo, repo_model)
+                except Exception as exc:
+                    self.app.log.error(f"Repository {repo.name} is empty.")
 
             for commit_model in tqdm(repo_model.commits):
                 self.update_commit(session, repo, commit_model)

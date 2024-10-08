@@ -82,7 +82,10 @@ class Runner:
     def __len__(self):
         return len(self.tasks)
 
-    def results(self, skip_none: bool = True):
+    def results(self, skip_none: bool = True, get_ids: bool = False):
+        if get_ids:
+            return [(task.id, task.result) for task in self.finished if not (skip_none and (task.result is None))]
+
         return [task.result for task in self.finished if not (skip_none and (task.result is None))]
 
     def reset(self):
@@ -100,4 +103,6 @@ class Runner:
     def done(self, task: Task):
         task.done()
         self.finished += [task]
-        del self.running[task.id]
+        #check if currently running
+        if task.id in self.running:
+            del self.running[task.id]
