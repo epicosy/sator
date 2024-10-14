@@ -25,6 +25,30 @@ class DatabaseHandler(HandlersInterface, Handler):
         self.tag_ids = {}
         self.cwe_ids = []
         self.lock = threading.Lock()
+        self.dependency_tables = [
+            ['vulnerability', 'repository', 'vendor'],
+            ['reference', 'vulnerability_cwe', 'product', 'commit', 'cvss2', 'cvss3'],
+            ['reference_tag', 'configuration'],
+            ['configuration_vulnerability']
+        ]
+
+    def get_cve_ids(self):
+        session = self.app.db_con.get_session()
+
+        if VulnerabilityModel.__tablename__ not in self.db_ids:
+            self.db_ids[VulnerabilityModel.__tablename__] = set(
+                [cve.id for cve in session.query(VulnerabilityModel).all()])
+
+        return self.db_ids[VulnerabilityModel.__tablename__]
+
+    def get_tag_ids(self):
+        if not self.tag_ids:
+            session = self.app.db_con.get_session()
+
+            for tag in session.query(TagModel).all():
+                self.tag_ids[tag.name] = tag.id
+
+        return self.tag_ids
 
     def init_global_context(self):
         # TODO: too complex, simplify
@@ -117,3 +141,14 @@ class DatabaseHandler(HandlersInterface, Handler):
 
         # return empty list to avoid executing subsequent tasks, otherwise it will result in more integrity errors
         return []
+
+    def bulk_insert_in_order(self, models_batches: List[List[Base]]):
+        for tables in self.dependency_tables:
+            self.app.log.info(f"Inserting {tables}.")
+            multi_task_handler = self.app.handler.get('handlers', 'multi_task', setup=True)
+
+            for models_batch in models_batches:
+                multi_task_handler.add(models=models_batch, tables=tables)
+
+            multi_task_handler(func=self.bulk_insert)
+            models_batches = multi_task_handler.results()
