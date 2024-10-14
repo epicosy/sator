@@ -4,7 +4,7 @@ from typing import List, Dict
 
 from sator.utils.misc import split_dict
 from sator.handlers.source import SourceHandler
-from sator.core.adapter import CVEToDBAdapter
+from sator.core.adapters.nvd.adapter import CVEToDBAdapter
 
 from nvdutils.types.cve import CVE
 from nvdutils.core.loaders.json_loader import JSONFeedsLoader
