@@ -2,11 +2,11 @@ from typing import Dict, List, Any, Union, Iterator
 
 from nvdutils.types.cve import CVE
 
-from sator.core.adapters.vulnerability import VulnerabilityAdapter, VulnerabilityCWEAdapter
-from sator.core.adapters.reference import ReferenceAdapter
-from sator.core.adapters.commit import CommitAdapter
-from sator.core.adapters.configuration import ConfigurationAdapter
-from sator.core.adapters.metrics import MetricsAdapter
+from sator.core.adapters.nvd.vulnerability import VulnerabilityAdapter, VulnerabilityCWEAdapter
+from sator.core.adapters.nvd.reference import ReferenceAdapter
+from sator.core.adapters.nvd.commit import CommitAdapter
+from sator.core.adapters.nvd.configuration import ConfigurationAdapter
+from sator.core.adapters.nvd.metrics import MetricsAdapter
 
 
 class CVEToDBAdapter:
@@ -27,11 +27,11 @@ class CVEToDBAdapter:
         self.metrics_adapter = MetricsAdapter(self.cve)
 
     def __call__(self) -> List[Union[Dict[str, Any], Iterator[Dict[str, Any]]]]:
-        results = [self.vulnerability_adapter()]
-        results.extend(self.vulnerability_cwe_adapter())
-        results.extend(self.reference_adapter())
-        results.extend(self.commit_adapter())
-        results.extend(self.configuration_adapter())
-        results.extend(self.metrics_adapter())
-
-        return results
+        return [
+            self.vulnerability_adapter(),
+            *self.vulnerability_cwe_adapter(),
+            *self.reference_adapter(),
+            *self.commit_adapter(),
+            *self.configuration_adapter(),
+            *self.metrics_adapter()
+        ]
