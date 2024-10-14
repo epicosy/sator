@@ -49,26 +49,7 @@ class NVDHandler(SourceHandler):
             processed_batches = multi_task_handler.results()
 
             # insert in order
-            self._insert_in_order(processed_batches)
-
-    def _insert_in_order(self, models_batches: List[List[Base]]):
-        # Now insert dependent tables (adjust keys according to your relationships)
-        dependency_tables = [
-            ['vulnerability', 'repository', 'vendor'],
-            ['reference', 'vulnerability_cwe', 'product', 'commit', 'cvss2', 'cvss3'],
-            ['reference_tag', 'configuration'],
-            ['configuration_vulnerability']
-        ]
-
-        for tables in dependency_tables:
-            self.app.log.info(f"Inserting {tables}.")
-            multi_task_handler = self.app.handler.get('handlers', 'multi_task', setup=True)
-
-            for models_batch in models_batches:
-                multi_task_handler.add(models=models_batch, tables=tables)
-
-            multi_task_handler(func=self.database_handler.bulk_insert)
-            models_batches = multi_task_handler.results()
+            self.database_handler.bulk_insert_in_order(processed_batches)
 
     def process(self, cve_data: Dict[str, CVE]) -> List[Dict[str, Base]]:
         res = []
