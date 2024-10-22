@@ -1,7 +1,8 @@
 from typing import List, Iterator, Union, Dict
 from sator.utils.misc import get_digest
 from sator.core.adapters.base import BaseAdapter
-from arepo.models.vcs.core import RepositoryModel, CommitModel
+from arepo.models.vcs.core.repository import RepositoryModel, RepositoryAssociationModel
+from arepo.models.vcs.core.commit import CommitModel, CommitAssociationModel
 from osvutils.types.range import GitRange
 
 
@@ -13,33 +14,37 @@ class CommitAdapter(BaseAdapter):
 
     def __call__(self) -> Iterator[Dict[str, Union[RepositoryModel, CommitModel]]]:
         for git_range in self.ranges:
-            repo_digest = get_digest(str(git_range.repo))
+            repo_model = RepositoryModel(
+                name=git_range.repo.name,
+                owner=git_range.repo.owner
+            )
 
-            self._ids[RepositoryModel.__tablename__].add(repo_digest)
-            yield {
-                repo_digest: RepositoryModel(
-                    id=repo_digest,
-                    name=git_range.repo.name,
-                    owner=git_range.repo.owner
-                )
-            }
+            yield from self.yield_if_new(repo_model, RepositoryModel.__tablename__)
 
-            # TODO: there should be a RepositoryVulnerability table to keep track of the vulns in a repo
+            # TODO: fix hardcoded source ids
+            repo_assoc = RepositoryAssociationModel(
+                repository_id=repo_model.id,
+                vulnerability_id=self.cve_id,
+                source_id='osv_id'
+            )
+
+            yield from self.yield_if_new(repo_assoc, RepositoryAssociationModel.__tablename__)
 
             # TODO: should also consider commits that introduce the vulnerability
             for fix_event in git_range.get_fixed_events():
-                # TODO: should use sha as the id
-                commit_digest = get_digest(f"{str(git_range.repo)}_{fix_event.version}")
-                self._ids[CommitModel.__tablename__].add(commit_digest)
-                # TODO: there should be a CommitVulnerability table, and the vulnerability_id should not be part of the
-                #  CommitModel
-                yield {
-                    commit_digest: CommitModel(
-                        id=commit_digest,
-                        url="",  # TODO: should be removed from the model
-                        sha=fix_event.version,
-                        kind="Patch",
-                        vulnerability_id=self.cve_id,
-                        repository_id=repo_digest  # TODO: probably there should be a RepositoryCommit table instead
-                    )
-                }
+                commit_model = CommitModel(
+                    sha=fix_event.version,
+                    kind="Patch",
+                    repository_id=repo_model.id
+                )
+
+                yield from self.yield_if_new(commit_model, CommitModel.__tablename__)
+
+                # TODO: fix hardcoded source ids
+                commit_assoc = CommitAssociationModel(
+                    commit_id=commit_model.id,
+                    vulnerability_id=self.cve_id,
+                    source_id='osv_id'
+                )
+
+                yield from self.yield_if_new(commit_assoc, CommitAssociationModel.__tablename__)

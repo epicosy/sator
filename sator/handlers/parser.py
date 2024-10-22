@@ -4,7 +4,7 @@ from sator.core.deltas.parser import DiffParser
 
 from arepo.models.vcs.core import CommitModel
 from arepo.models.vcs.diff import DiffBlockModel, ChangeModel
-from arepo.utils import get_digest
+from arepo.utils.misc import generate_id
 from sqlalchemy.exc import IntegrityError
 
 from typing import Union
@@ -136,7 +136,8 @@ class DiffParserHandler(HandlersInterface, Handler):
                 for cf in commit.files:
                     if cf.filename == diff_block.b_path:
                         commit_file = cf
-                        diff_block_id = get_digest(f"{id_path}_{cf.filename}_{diff_block.start}")
+                        # TODO: id generation should be handled by the DiffBlockModel
+                        diff_block_id = generate_id(f"{id_path}_{cf.filename}_{diff_block.start}")
                         break
                 else:
                     self.app.log.warning(f"[{commit.vulnerability_id}] Commit {commit.sha} has no file "
@@ -180,7 +181,8 @@ class DiffParserHandler(HandlersInterface, Handler):
                             self.app.log.warning(f"[{commit.vulnerability_id}] Skipped {el['type']} change with "
                                                  f"multiple lines.")
                             continue
-                        change_id = get_digest(f"{id_path}_{el['sline']}_{el['type']}")
+                        # TODO: id generation should be handled by the ChangeModelModel
+                        change_id = generate_id(f"{id_path}_{el['sline']}_{el['type']}")
                         change = ChangeModel(id=change_id, line=el['sline'], content=el['content'],
                                              start_col=el['scol'], end_col=el['ecol'], type=el['type'],
                                              diff_block_id=diff_block_model.id)

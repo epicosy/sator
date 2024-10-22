@@ -8,11 +8,12 @@ from sator.core.adapters.osv.metrics import MetricsAdapter
 
 
 class OSVToDBAdapter:
-    def __init__(self, osv: OSV, tag_ids: Dict[str, int]):
+    def __init__(self, osv: OSV, tag_ids: Dict[str, int], source_ids: Dict[str, str]):
         self.osv = osv
         cve_id = osv.get_cve_id()
         # TODO: find a better way to handle tags
         self.tag_ids = tag_ids
+        self.source_ids = source_ids
 
         # self.commits, self.references = osv.get_separated_references(vcs='github')
         self.reference_adapter = ReferenceAdapter(cve_id, osv.references, self.tag_ids)

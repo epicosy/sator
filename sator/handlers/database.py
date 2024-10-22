@@ -6,13 +6,22 @@ from sqlalchemy.exc import IntegrityError
 
 from arepo.base import Base
 from sator.core.interfaces import HandlersInterface
-from arepo.models.common.scoring import CVSS2Model, CVSS3Model
-from arepo.models.common.vulnerability import (VulnerabilityModel, VulnerabilityCWEModel, TagModel, ReferenceModel,
-                                               ReferenceTagModel)
+
 from arepo.models.common.weakness import CWEModel
-from arepo.models.common.platform import ProductModel, VendorModel, ConfigurationModel, ConfigurationVulnerabilityModel
-from arepo.models.vcs.core import RepositoryModel, CommitModel, CommitFileModel
+from arepo.models.common.scoring import CVSS2Model, CVSS3Model, CVSS2AssociationModel, CVSS3AssociationModel
+from arepo.models.common.tag import TagModel, TagAssociationModel
+from arepo.models.common.reference import ReferenceModel, ReferenceAssociationModel
+from arepo.models.common.vulnerability import VulnerabilityModel, VulnerabilityCWEModel
+
+from arepo.models.common.platform.configuration import ConfigurationModel, NodeModel
+from arepo.models.common.platform.cpe import CPEModel, CPEMatchModel
+from arepo.models.common.platform.product import ProductModel
+from arepo.models.common.platform.vendor import VendorModel
+
+from arepo.models.source import SourceModel
 from arepo.models.vcs.symbol import TopicModel
+from arepo.models.vcs.core.repository import RepositoryModel, RepositoryAssociationModel
+from arepo.models.vcs.core.commit import CommitModel, CommitFileModel, CommitAssociationModel
 
 
 class DatabaseHandler(HandlersInterface, Handler):
@@ -22,20 +31,64 @@ class DatabaseHandler(HandlersInterface, Handler):
     def __init__(self, **kw):
         super().__init__(**kw)
         self.db_ids = {}
-        self.tag_ids = {}
-        self.cwe_ids = []
+        self._tag_ids = {}
+        self._cwe_ids = []
+        self._source_ids = {}
         self.lock = threading.Lock()
+        # TODO: update this
         self.dependency_tables = [
-            ['vulnerability', 'repository', 'vendor'],
-            ['reference', 'vulnerability_cwe', 'product', 'commit', 'cvss2', 'cvss3'],
-            ['reference_tag', 'configuration'],
-            ['configuration_vulnerability']
+            [VulnerabilityModel.__tablename__, ReferenceModel.__tablename__, CVSS2Model.__tablename__,
+             CVSS3Model.__tablename__, RepositoryModel.__tablename__, VendorModel.__tablename__],
+            [CommitModel.__tablename__, ConfigurationModel.__tablename__, ProductModel.__tablename__,
+             VulnerabilityCWEModel.__tablename__, ReferenceAssociationModel.__tablename__,
+             TagAssociationModel.__tablename__, RepositoryAssociationModel.__tablename__,
+             CVSS2AssociationModel.__tablename__, CVSS3AssociationModel.__tablename__],
+            [CommitAssociationModel.__tablename__, CPEModel.__tablename__, NodeModel.__tablename__],
+            [CPEMatchModel.__tablename__]
         ]
 
-    def get_cve_ids(self):
-        session = self.app.db_con.get_session()
+    @property
+    def tag_ids(self):
+        if not self._tag_ids:
+            session = self.app.db_con.get_session()
 
+            for tag in session.query(TagModel).all():
+                self._tag_ids[tag.name] = tag.id
+
+        return self._tag_ids
+
+    @property
+    def cwe_ids(self):
+        if not self._cwe_ids:
+            session = self.app.db_con.get_session()
+
+            for cwe in session.query(CWEModel).all():
+                self._cwe_ids.append(cwe.id)
+
+        return self._cwe_ids
+
+    @property
+    def source_ids(self):
+        if not self._source_ids:
+            session = self.app.db_con.get_session()
+
+            for source in session.query(SourceModel).all():
+                self._source_ids[source.id] = source.email
+
+        return self._source_ids
+
+    def add_source_id(self, source_id: str, source_name: str, email: str):
+        # TODO: temporary solution, should be handled by the ORM
+        session = self.app.db_con.get_session()
+        session.add(SourceModel(id=source_id, name=source_name, email=email))
+        session.commit()
+
+        self.source_ids[source_name] = source_id
+
+    def get_cve_ids(self):
         if VulnerabilityModel.__tablename__ not in self.db_ids:
+            session = self.app.db_con.get_session()
+
             self.db_ids[VulnerabilityModel.__tablename__] = set(
                 [cve.id for cve in session.query(VulnerabilityModel).all()])
 
@@ -51,47 +104,18 @@ class DatabaseHandler(HandlersInterface, Handler):
         return self.tag_ids
 
     def init_global_context(self):
-        # TODO: too complex, simplify
+        # TODO: Caching and Initialization should be done at the ORM-Level
+        # TODO: Look into Identity Map Pattern for Efficient ID Handling
         self.app.log.info("Initializing global context...")
         session = self.app.db_con.get_session()
-        # Setup available tags and CWE-IDs
 
-        for tag in session.query(TagModel).all():
-            self.tag_ids[tag.name] = tag.id
-
-        for cwe in session.query(CWEModel).all():
-            self.cwe_ids.append(cwe.id)
-
-        # Setup IDs in database
-        self.app.log.info("Loading vuln IDs...")
-        self.db_ids[VulnerabilityModel.__tablename__] = set([cve.id for cve in session.query(VulnerabilityModel).all()])
-        self.app.log.info("Loading vuln_cwe IDs...")
-        self.db_ids[VulnerabilityCWEModel.__tablename__] = set([f"{vc.vulnerability_id}_{vc.cwe_id}" for vc in session.query(VulnerabilityCWEModel).all()])
-        self.app.log.info("Loading ref IDs...")
-        self.db_ids[ReferenceModel.__tablename__] = set([ref.id for ref in session.query(ReferenceModel).all()])
-        self.app.log.info("Loading ref_tag IDs...")
-        self.db_ids[ReferenceTagModel.__tablename__] = set([f"{rf.reference_id}_{rf.tag_id}" for rf in session.query(ReferenceTagModel).all()])
-        self.app.log.info("Loading repo IDs...")
-        self.db_ids[RepositoryModel.__tablename__] = set([repo.id for repo in session.query(RepositoryModel).all()])
-        self.app.log.info("Loading commits IDs...")
-        self.db_ids[CommitModel.__tablename__] = set([commit.id for commit in session.query(CommitModel).all()])
-        self.app.log.info("Loading configs IDs...")
-        self.db_ids[ConfigurationModel.__tablename__] = set([config.id for config in session.query(ConfigurationModel).all()])
-        self.app.log.info("Loading config_vuln IDs...")
-        self.db_ids[ConfigurationVulnerabilityModel.__tablename__] = set([f"{cv.configuration_id}_{cv.vulnerability_id}" for cv in
-                                                                          session.query(ConfigurationVulnerabilityModel).all()])
-        self.app.log.info("Loading products IDs...")
-        self.db_ids[ProductModel.__tablename__] = set([product.id for product in session.query(ProductModel).all()])
-        self.app.log.info("Loading vendors IDs...")
-        self.db_ids[VendorModel.__tablename__] = set([vendor.id for vendor in session.query(VendorModel).all()])
-        self.app.log.info("Loading commits files IDs...")
-        self.db_ids[CommitFileModel.__tablename__] = set([commit_file.id for commit_file in session.query(CommitFileModel).all()])
-        self.app.log.info("Loading CVSS2 IDs...")
-        self.db_ids[CVSS2Model.__tablename__] = set([cvss.id for cvss in session.query(CVSS2Model).all()])
-        self.app.log.info("Loading CVSS3 IDs...")
-        self.db_ids[CVSS3Model.__tablename__] = set([cvss.id for cvss in session.query(CVSS3Model).all()])
-        self.app.log.info("Loading topics IDs...")
-        self.db_ids[TopicModel.__tablename__] = set([topic.id for topic in session.query(TopicModel).all()])
+        for model in [TagModel, CWEModel, VulnerabilityModel, VulnerabilityCWEModel, ReferenceModel, RepositoryModel,
+                      ReferenceAssociationModel, CommitModel, RepositoryAssociationModel, CommitAssociationModel,
+                      TagAssociationModel, CVSS2Model, CVSS3Model, ProductModel, VendorModel, ConfigurationModel,
+                      NodeModel, CPEModel, CPEMatchModel, TopicModel, CommitFileModel, CVSS2AssociationModel,
+                      CVSS3AssociationModel]:
+            self.app.log.info(f"Loading {model.__tablename__} primary IDs.")
+            self.db_ids[model.__tablename__] = model.get_all_ids(session)
 
     def has_id(self, _id: str, _type: str) -> bool:
         return _id in self.db_ids[_type]
@@ -99,6 +123,9 @@ class DatabaseHandler(HandlersInterface, Handler):
     def add_id(self, _id: str, _type: str):
         with self.lock:
             self.db_ids[_type].add(_id)
+
+    def get_session(self):
+        return self.app.db_con.get_session()
 
     def bulk_insert(self, models: List[Dict[str, Base]], tables: List[str]):
         """

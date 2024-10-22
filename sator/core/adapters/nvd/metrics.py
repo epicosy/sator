@@ -1,79 +1,86 @@
-import json
-
 from typing import Union, Iterator, Dict
 from nvdutils.types.cve import CVE
 from nvdutils.types.cvss import CVSSv2, CVSSv3, CVSSType
-from sator.utils.misc import get_digest
 from sator.core.adapters.base import BaseAdapter
 
-from arepo.models.common.scoring import CVSS2Model, CVSS3Model
+from arepo.models.common.scoring.cvss2 import CVSS2Model, CVSS2AssociationModel
+from arepo.models.common.scoring.cvss3 import CVSS3Model, CVSS3AssociationModel
 
 
 class MetricsAdapter(BaseAdapter):
-    def __init__(self, cve: CVE):
+    def __init__(self, cve: CVE, source_ids: Dict[str, str]):
         super().__init__()
         self.cve = cve
         self.metrics = []
+        self.source_ids = source_ids
 
         for metric_type in ['cvssMetricV2', 'cvssMetricV31', 'cvssMetricV30']:
             self.metrics.extend(cve.get_metrics(metric_type, CVSSType.Primary))
 
-    def get_model(self, cvss: Union[CVSSv2, CVSSv3]):
-        cvss_dict = cvss.to_dict()
-        # TODO: cve_id should not be part of the id
-        cvss_dict.update({"cve_id": self.cve.id})
-        cvss_id = get_digest(json.dumps(cvss_dict))
+    def convert_cvss2(self, cvss: CVSSv2) -> Iterator[Dict[str, Union[CVSS2Model, CVSS2AssociationModel]]]:
+        cvss_model = CVSS2Model(
+            vector_string=cvss.vector,
+            access_vector=cvss.access_vector,
+            access_complexity=cvss.access_complexity,
+            authentication=cvss.authentication,
+            confidentiality_impact=cvss.impact.confidentiality,
+            integrity_impact=cvss.impact.integrity,
+            availability_impact=cvss.impact.availability,
+            base_severity=cvss.base_severity,
+            base_score=cvss.scores.base,
+            exploitability_score=cvss.scores.exploitability,
+            impact_score=cvss.scores.impact,
+            ac_insuf_info=cvss.ac_insuf_info,
+            obtain_all_privilege=cvss.obtain_all_privilege,
+            obtain_user_privilege=cvss.obtain_user_privilege,
+            obtain_other_privilege=cvss.obtain_other_privilege,
+            user_interaction_required=cvss.user_interaction_required
+        )
 
-        if isinstance(cvss, CVSSv2):
-            self._ids[CVSS2Model.__tablename__].add(cvss_id)
-            return CVSS2Model(
-                id=cvss_id,
-                vulnerability_id=self.cve.id,
-                cvssData_version=cvss.version,
-                cvssData_vectorString=cvss.vector,
-                cvssData_accessVector=cvss.access_vector,
-                cvssData_accessComplexity=cvss.access_complexity,
-                cvssData_authentication=cvss.authentication,
-                cvssData_confidentialityImpact=cvss.impact.confidentiality,
-                cvssData_integrityImpact=cvss.impact.integrity,
-                cvssData_availabilityImpact=cvss.impact.availability,
-                cvssData_baseScore=cvss.scores.base,
-                baseSeverity=cvss.base_severity,
-                exploitabilityScore=cvss.scores.exploitability,
-                impactScore=cvss.scores.impact,
-                acInsufInfo=cvss.ac_insuf_info,
-                obtainAllPrivilege=cvss.obtain_all_privilege,
-                obtainUserPrivilege=cvss.obtain_user_privilege,
-                obtainOtherPrivilege=cvss.obtain_other_privilege,
-                userInteractionRequired=cvss.user_interaction_required
-            )
-        elif isinstance(cvss, CVSSv3):
-            self._ids[CVSS3Model.__tablename__].add(cvss_id)
-            return CVSS3Model(
-                id=cvss_id,
-                vulnerability_id=self.cve.id,
-                exploitabilityScore=cvss.scores.exploitability,
-                impactScore=cvss.scores.impact,
-                cvssData_version=cvss.version,
-                cvssData_vectorString=cvss.vector,
-                cvssData_attackVector=cvss.attack_vector,
-                cvssData_attackComplexity=cvss.attack_complexity,
-                cvssData_privilegesRequired=cvss.privileges_required,
-                cvssData_userInteraction=cvss.user_interaction,
-                cvssData_scope=cvss.scope,
-                cvssData_confidentialityImpact=cvss.impact.confidentiality,
-                cvssData_integrityImpact=cvss.impact.integrity,
-                cvssData_availabilityImpact=cvss.impact.availability,
-                cvssData_baseScore=cvss.scores.base,
-                cvssData_baseSeverity=cvss.base_severity
-            )
+        yield from self.yield_if_new(cvss_model, CVSS2Model.__tablename__)
+        # TODO: fix the source ids
 
-    def __call__(self) -> Iterator[Dict[str, Union[CVSS2Model, CVSS3Model]]]:
+        cvss_assoc = CVSS2AssociationModel(
+            cvss_id=cvss_model.id,
+            vulnerability_id=self.cve.id,
+            source_id="nvd_id"
+        )
+
+        yield from self.yield_if_new(cvss_assoc, CVSS2AssociationModel.__tablename__)
+
+    def convert_cvss3(self, cvss: CVSSv3) -> Iterator[Dict[str, Union[CVSS3Model, CVSS3AssociationModel]]]:
+        cvss_model = CVSS3Model(
+            version=cvss.version,
+            vector_string=cvss.vector,
+            attack_vector=cvss.attack_vector,
+            attack_complexity=cvss.attack_complexity,
+            privileges_required=cvss.privileges_required,
+            user_interaction=cvss.user_interaction,
+            scope=cvss.scope,
+            confidentiality_impact=cvss.impact.confidentiality,
+            integrity_impact=cvss.impact.integrity,
+            availability_impact=cvss.impact.availability,
+            base_severity=cvss.base_severity,
+            base_score=cvss.scores.base,
+            exploitability_score=cvss.scores.exploitability,
+            impact_score=cvss.scores.impact
+        )
+
+        yield from self.yield_if_new(cvss_model, CVSS3Model.__tablename__)
+        # TODO: fix the source ids
+
+        cvss_assoc = CVSS3AssociationModel(
+            cvss_id=cvss_model.id,
+            vulnerability_id=self.cve.id,
+            source_id="nvd_id"
+        )
+
+        yield from self.yield_if_new(cvss_assoc, CVSS3AssociationModel.__tablename__)
+
+    def __call__(self) \
+            -> Iterator[Dict[str, Union[CVSS2Model, CVSS3Model, CVSS3AssociationModel, CVSS2AssociationModel]]]:
         for cvss in self.metrics:
-            cvss_model = self.get_model(cvss)
-
-            yield {
-                cvss_model.id: cvss_model
-            }
-
-            # TODO: add instance with cvss_id and vulnerability_id to CVSSVulnerability table
+            if isinstance(cvss, CVSSv2):
+                yield from self.convert_cvss2(cvss)
+            elif isinstance(cvss, CVSSv3):
+                yield from self.convert_cvss3(cvss)
