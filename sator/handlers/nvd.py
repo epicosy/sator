@@ -1,17 +1,20 @@
+from cement import Handler
+
 from tqdm import tqdm
 from arepo.base import Base
 from typing import List, Dict
 
 from sator.utils.misc import split_dict
-from sator.handlers.source import SourceHandler
 from sator.core.adapters.nvd.adapter import CVEToDBAdapter
+from sator.core.interfaces import HandlersInterface
+
 
 from nvdutils.types.cve import CVE
 from nvdutils.core.loaders.json_loader import JSONFeedsLoader
 from nvdutils.types.options import CVEOptions, ConfigurationOptions
 
 
-class NVDHandler(SourceHandler):
+class NVDHandler(HandlersInterface, Handler):
     class Meta:
         label = 'nvd'
 
@@ -55,6 +58,7 @@ class NVDHandler(SourceHandler):
 
             multi_task_handler(func=self.process)
 
+            # TODO: bottleneck here when running for man years, fix it
             processed_batches = multi_task_handler.results()
 
             # insert in order

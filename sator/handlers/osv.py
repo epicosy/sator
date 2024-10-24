@@ -43,7 +43,6 @@ class OSVHandler(HandlersInterface, Handler):
         self.check_source_id()
 
         loader = OSVDataLoader(
-            ecosystems=['Debian'],
             filters=LoaderFilters(
                 database_filter=DatabaseFilter(
                     prefix_is_cve=True
@@ -57,6 +56,10 @@ class OSVHandler(HandlersInterface, Handler):
         loader()
 
         for ecosystem, osv_data in loader:
+            if len(osv_data) == 0:
+                self.app.log.info(f"No OSV records loaded for ecosystem {ecosystem}.")
+                continue
+
             self.app.log.info(f"Loaded {len(osv_data)} OSV records for ecosystem {ecosystem}.")
             batches = split_dict(osv_data, 500)
             self.app.log.info(f"Batches {len(batches)}.")

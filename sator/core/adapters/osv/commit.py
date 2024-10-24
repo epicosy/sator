@@ -1,5 +1,4 @@
 from typing import List, Iterator, Union, Dict
-from sator.utils.misc import get_digest
 from sator.core.adapters.base import BaseAdapter
 from arepo.models.vcs.core.repository import RepositoryModel, RepositoryAssociationModel
 from arepo.models.vcs.core.commit import CommitModel, CommitAssociationModel

@@ -79,7 +79,8 @@ class ConfigurationAdapter(BaseAdapter):
         )
 
         yield from self.yield_if_new(cpe_model, CPEModel.__tablename__)
-
+        # TODO: there is an offset when inserting this and yields many integrity errors (insert cpe_match_cpe_id_fkey)
+        #   key (cpe_id)=something is not present in table "cpe"
         cpe_match_model = CPEMatchModel(
             id=cpe_match.criteria_id,
             cpe_id=cpe_model.id,

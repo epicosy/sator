@@ -27,6 +27,7 @@ class Source(Controller):
         ]
     )
     def collect(self):
+        # TODO: needs to accommodate the parameters for the different sources
         from datetime import datetime
         end = datetime.now().year + 1
         start = self.app.pargs.start if self.app.pargs.start else 1988

@@ -33,9 +33,9 @@ dependencies = [
     "pygithub~=1.55",
     "cpeparser~=0.0.2",
     "beautifulsoup4~=4.12.2",
-    "arepo==3.3.1",
+    "arepo==3.3.2",
     "nvdutils==2.4.0",
-    "osv-utils==0.3.7"
+    "osv-utils==0.3.8"
 ]
 
 [project.optional-dependencies]
