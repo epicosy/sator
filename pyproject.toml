@@ -28,14 +28,13 @@ dependencies = [
     "jinja2",
     "colorlog==6.7.0",
     "PyYAML==6.0",
-    "requests==2.28.2",
-    "tqdm==4.64.1",
-    "pygithub~=1.55",
+    "requests~=2.32.2",
+    "tqdm~=4.67.1",
+    "pygithub~=2.5.0",
     "cpeparser~=0.0.2",
     "beautifulsoup4~=4.12.2",
-    "arepo==3.3.2",
-    "nvdutils==2.4.0",
-    "osv-utils==0.3.8"
+    "arepo==3.5.0",
+    "github_lib==0.7.0"
 ]
 
 [project.optional-dependencies]
@@ -44,7 +43,7 @@ test = [
     "pytest-cov",
     "coverage",
     "twine>=1.11.0",
-    "setuptools>=38.6.0",   
+    "setuptools>=38.6.0",
     "wheel>=0.31.0"
 ]
 
