@@ -1,12 +1,12 @@
 from typing import List, Iterator, Union, Dict
 from sator.utils.misc import get_digest
-from nvdutils.types.configuration import Configuration
+from nvdutils.models.configurations import Configurations
 from arepo.models.common.platform import VendorModel, ProductModel, ConfigurationModel, ConfigurationVulnerabilityModel
 from sator.core.adapters.base import BaseAdapter
 
 
 class ConfigurationAdapter(BaseAdapter):
-    def __init__(self, cve_id: str, configurations: List[Configuration]):
+    def __init__(self, cve_id: str, configurations: Configurations):
         super().__init__()
         self.cve_id = cve_id
         self.configurations = configurations
