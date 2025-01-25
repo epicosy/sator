@@ -5,6 +5,7 @@ from typing import Dict, Union, Iterator
 from arepo.mixins import EntityLoaderMixin
 
 
+# TODO: this belongs to the database
 class BaseAdapter:
     def __init__(self, *args, **kwargs):
         self._ids = defaultdict(set)
