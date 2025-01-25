@@ -2,8 +2,8 @@ from typing import List, Dict, Iterator, Union
 
 from sator.core.adapters.base import BaseAdapter
 from osvutils.types.reference import Reference
-from arepo.models.common.vulnerability import ReferenceModel, ReferenceTagModel
-from sator.utils.misc import get_digest
+from arepo.models.common.reference import ReferenceModel, ReferenceAssociationModel
+from arepo.models.common.tag import TagAssociationModel
 
 
 # TODO: should decide which one is the standard format
@@ -28,30 +28,30 @@ class ReferenceAdapter(BaseAdapter):
         self.tag_ids = tag_ids
         self.references = references if references is not None else []
 
-    def __call__(self) -> Iterator[Dict[str, Union[ReferenceModel, ReferenceTagModel]]]:
+    def __call__(self) -> Iterator[Dict[str, Union[ReferenceModel, ReferenceAssociationModel]]]:
         for reference in self.references:
             # TODO: Reference model should provide a function for this
-            reference_url = reference.url if reference.is_full_url() else str(reference.url)
-            ref_digest = get_digest(reference_url)
-            self._ids[ReferenceModel.__tablename__].add(ref_digest)
-            # TODO: there should be a ReferenceVulnerability table, and the vulnerability_id should not be part of the
-            #  ReferenceModel
-            yield {
-                ref_digest: ReferenceModel(
-                    id=ref_digest,
-                    url=reference_url,
-                    vulnerability_id=self.cve_id
-                )
-            }
+            ref_model = ReferenceModel(
+                url=reference.url if reference.is_full_url() else str(reference.url)
+            )
+
+            yield from self.yield_if_new(ref_model, ReferenceModel.__tablename__)
+
+            ref_assoc = ReferenceAssociationModel(
+                vulnerability_id=self.cve_id,
+                reference_id=ref_model.id,
+                source_id="osv_id"
+            )
+
+            yield from self.yield_if_new(ref_assoc, ReferenceAssociationModel.__tablename__)
 
             # Map reference type to tag id
             tag = OSV_TO_NVD_TAG_MAP[reference.type]
-            _id = f"{ref_digest}_{self.tag_ids[tag]}"
-            self._ids[ReferenceTagModel.__tablename__].add(_id)
 
-            yield {
-                _id: ReferenceTagModel(
-                    reference_id=ref_digest,
-                    tag_id=self.tag_ids[tag]
-                )
-            }
+            tag_assoc = TagAssociationModel(
+                reference_id=ref_model.id,
+                tag_id=self.tag_ids[tag],
+                source_id="osv_id"
+            )
+
+            yield from self.yield_if_new(tag_assoc, TagAssociationModel.__tablename__)

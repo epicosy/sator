@@ -16,9 +16,10 @@ $ docker run --shm-size 128MB --name sator_db -e POSTGRES_PASSWORD=user123 -e PO
 
 ### Usage
 
-Set up URI string in environment variable:
+Set up environment variables:
 ```sh
 $ export SQLALCHEMY_DATABASE_URI='postgresql://user:password@127.0.0.1:5432/db'
+$ export GITHUB_TOKENS='your_github_tokens,separated_by_commas'
 ```
 
 Init database (optional, if not already done):
@@ -26,9 +27,14 @@ Init database (optional, if not already done):
 $ arepo -u $SQLALCHEMY_DATABASE_URI init
 ```
 
-Populate database with NVD:
+Populate database with CVEs from NVD:
 ```sh
 $ sator source -n nvd collect -s 1999 -e 2024
+```
+
+Collect repo/commit data from GitHub:
+```sh
+$ sator source -n github collect
 ```
 
 

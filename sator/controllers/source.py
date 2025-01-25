@@ -27,6 +27,7 @@ class Source(Controller):
         ]
     )
     def collect(self):
+        # TODO: needs to accommodate the parameters for the different sources
         from datetime import datetime
         end = datetime.now().year + 1
         start = self.app.pargs.start if self.app.pargs.start else 1988
@@ -49,53 +50,3 @@ class Source(Controller):
 
         self.app.handler.get('handlers', self.app.pargs.name, setup=True).run(start=start, end=end)
 
-    @ex(
-        help='Gets data from GitHub',
-        arguments=[
-            (['-gt', '--tokens'], {'help': 'Comma-separated list of tokens for the GitHub API.', 'type': str,
-                                   'required': True}),
-            (['-l', '--language'], {'help': 'Programming language', 'type': str, 'required': False,
-                                    'choices': ['JavaScript', 'Java', 'C', 'C++']}),
-        ]
-    )
-    def metadata(self):
-        """Metadata sub-command."""
-        self.app.handler.get('handlers', self.app.pargs.name, setup=True).add_metadata(self.app.pargs.language)
-
-    @ex(
-        help='Gets and parses the diffs for repositories in a given programming language',
-        arguments=[
-            (['-l', '--language'], {'help': 'Programming language', 'type': str, 'required': True,
-                                    'choices': ['JavaScript', 'Java', 'C', 'C++']}),
-            (['-gt', '--tokens'], {'help': 'Comma-separated list of tokens for the GitHub API.', 'type': str,
-                                   'required': True}),
-            (['--max_changes'], {'help': 'Maximum number of changes to parse', 'type': int, 'required': False,
-                                 'default': 5})
-        ]
-    )
-    def parse(self):
-        """Collect sub-command."""
-        self.app.log.info(self.app.pargs.language)
-        from arepo.models.vcs.core import RepositoryModel
-        from tqdm import tqdm
-
-        session = self.app.db_con.get_session()
-
-        repos = (session.query(RepositoryModel).filter(RepositoryModel.language == self.app.pargs.language)
-                 .filter(RepositoryModel.available.is_(True)).all())
-        self.app.log.info(f"Found {len(repos)} repositories.")
-        diff_parser = self.app.handler.get('handlers', 'parser', setup=True)
-
-        for repo_model in tqdm(repos):
-            # get available commits for the repository
-            commits = [c for c in repo_model.commits if c.available and c.kind != 'parent' and len(c.parents) == 1
-                       and c.changes <= self.app.pargs.max_changes]
-
-            if not commits:
-                self.app.log.warning(f"No commits found for {repo_model.name}.")
-                continue
-
-            self.app.log.info(f"Found {len(commits)} commits for {repo_model.name}.")
-            diffs = diff_parser.run(commits=commits)
-
-            print(diffs)

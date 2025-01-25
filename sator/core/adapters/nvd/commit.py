@@ -1,8 +1,8 @@
 from typing import List, Iterator, Union, Dict
-from sator.utils.misc import get_digest
 from sator.core.adapters.base import BaseAdapter
 from nvdutils.types.reference import CommitReference
-from arepo.models.vcs.core import RepositoryModel, CommitModel
+from arepo.models.vcs.core.repository import RepositoryModel, RepositoryAssociationModel
+from arepo.models.vcs.core.commit import CommitModel, CommitAssociationModel
 
 
 class CommitAdapter(BaseAdapter):
@@ -11,29 +11,33 @@ class CommitAdapter(BaseAdapter):
         self.cve_id = cve_id
         self.commits = commits
 
-    def __call__(self) -> Iterator[Dict[str, Union[RepositoryModel, CommitModel]]]:
+    def __call__(self) -> Iterator[Dict[str, Union[RepositoryModel, RepositoryAssociationModel, CommitModel, CommitAssociationModel]]]:
         for commit in self.commits:
-            repo_digest = get_digest(f"{commit.owner}/{commit.repo}")
-            self._ids[RepositoryModel.__tablename__].add(repo_digest)
-            yield {
-                repo_digest: RepositoryModel(
-                    id=repo_digest,
-                    name=commit.repo,
-                    owner=commit.owner
-                )
-            }
+            if not (commit.tags and 'Patch' in commit.tags):
+                # Skip commits that are not patches
+                continue
 
-            commit_digest = get_digest(commit.processed_url)
-            self._ids[CommitModel.__tablename__].add(commit_digest)
-            # TODO: there should be a CommitVulnerability table, and the vulnerability_id should not be part of the
-            #  CommitModel
-            yield {
-                commit_digest: CommitModel(
-                    id=commit_digest,
-                    url=commit.processed_url,
-                    sha=commit.sha,
-                    kind='|'.join(commit.tags),
-                    vulnerability_id=self.cve_id,
-                    repository_id=repo_digest
-                )
-            }
+            repo_model = RepositoryModel(name=commit.repo, owner=commit.owner)
+            yield from self.yield_if_new(repo_model, RepositoryModel.__tablename__)
+
+            # TODO: fix hardcoded source ids
+            repo_assoc = RepositoryAssociationModel(
+                repository_id=repo_model.id,
+                vulnerability_id=self.cve_id,
+                source_id='nvd_id'
+            )
+
+            yield from self.yield_if_new(repo_assoc, RepositoryAssociationModel.__tablename__)
+
+            commit_model = CommitModel(sha=commit.sha, kind="Patch", repository_id=repo_model.id)
+
+            yield from self.yield_if_new(commit_model, CommitModel.__tablename__)
+
+            # TODO: fix hardcoded source ids
+            commit_assoc = CommitAssociationModel(
+                commit_id=commit_model.id,
+                vulnerability_id=self.cve_id,
+                source_id='nvd_id'
+            )
+
+            yield from self.yield_if_new(commit_assoc, CommitAssociationModel.__tablename__)

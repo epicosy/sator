@@ -10,21 +10,23 @@ from sator.core.adapters.nvd.metrics import MetricsAdapter
 
 
 class CVEToDBAdapter:
-    def __init__(self, cve: CVE, tag_ids: Dict[str, int], cwe_ids: Dict[str, int]):
+    def __init__(self, cve: CVE, tag_ids: Dict[str, int], cwe_ids: List[int], source_ids: Dict[str, str]):
         self.cve = cve
         # TODO: find a better way to handle tags
         self.tag_ids = tag_ids
         # TODO: find a better way to handle CWEs
         self.cwe_ids = cwe_ids
+        # TODO: find a better way to handle source ids
+        self.source_ids = source_ids
 
         self.commits, self.references = cve.get_separated_references(vcs='github')
 
-        self.vulnerability_adapter = VulnerabilityAdapter(self.cve)
+        self.vulnerability_adapter = VulnerabilityAdapter(self.cve, self.source_ids)
         self.vulnerability_cwe_adapter = VulnerabilityCWEAdapter(self.cve, self.cwe_ids)
-        self.reference_adapter = ReferenceAdapter(self.cve.id, self.references, self.tag_ids)
+        self.reference_adapter = ReferenceAdapter(self.cve.id, self.references, self.tag_ids, self.source_ids)
         self.commit_adapter = CommitAdapter(self.cve.id, self.commits)
         self.configuration_adapter = ConfigurationAdapter(self.cve.id, self.cve.configurations)
-        self.metrics_adapter = MetricsAdapter(self.cve)
+        self.metrics_adapter = MetricsAdapter(self.cve, self.source_ids)
 
     def __call__(self) -> List[Union[Dict[str, Any], Iterator[Dict[str, Any]]]]:
         return [

@@ -21,7 +21,9 @@ class OSVHandler(HandlersInterface, Handler):
 
     def __init__(self, **kw):
         super().__init__(**kw)
-
+        self.id = "osv_id"
+        self.name = "OSV"
+        self.email = "opensource@google.com"
         self._database_handler = None
 
     @property
@@ -31,11 +33,16 @@ class OSVHandler(HandlersInterface, Handler):
 
         return self._database_handler
 
+    # TODO: this should be done somewhere else, maybe during population of the database
+    def check_source_id(self):
+        if self.id not in self.database_handler.source_ids:
+            self.database_handler.add_source_id(self.id, self.name, self.email)
+
     def run(self, **kwargs):
         self.database_handler.init_global_context()
+        self.check_source_id()
 
         loader = OSVDataLoader(
-            ecosystems=['GIT'],
             filters=LoaderFilters(
                 database_filter=DatabaseFilter(
                     prefix_is_cve=True
@@ -49,6 +56,10 @@ class OSVHandler(HandlersInterface, Handler):
         loader()
 
         for ecosystem, osv_data in loader:
+            if len(osv_data) == 0:
+                self.app.log.info(f"No OSV records loaded for ecosystem {ecosystem}.")
+                continue
+
             self.app.log.info(f"Loaded {len(osv_data)} OSV records for ecosystem {ecosystem}.")
             batches = split_dict(osv_data, 500)
             self.app.log.info(f"Batches {len(batches)}.")
@@ -74,7 +85,7 @@ class OSVHandler(HandlersInterface, Handler):
             if not self.database_handler.has_id(cve_id, VulnerabilityModel.__tablename__):
                 continue
 
-            osv_adapter = OSVToDBAdapter(osv, self.database_handler.tag_ids)
+            osv_adapter = OSVToDBAdapter(osv, self.database_handler.tag_ids, self.database_handler.source_ids)
             res.extend(osv_adapter())
 
         return res

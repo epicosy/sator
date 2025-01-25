@@ -1,19 +1,20 @@
-import threading
-import requests
-
-from pathlib import Path
+from tqdm import tqdm
+from os import environ
 from cement import Handler
-from collections import deque
-from typing import Union, List, Tuple
+from typing import List, Dict
 
-from github import Github
-from github.Commit import Commit
-from github.Repository import Repository
-from github.GithubException import GithubException, RateLimitExceededException, UnknownObjectException
 
-from sator.data.parsing import DiffBlock
-from sator.core.exc import SatorGithubError
+from arepo.base import Base
+from arepo.models.vcs.core.repository import RepositoryModel
+from arepo.models.vcs.core.commit import CommitParentModel
+
+from gitlib.models.diff import Diff
+from gitlib.loader import DiffLoader
+from gitlib.github.client import GitClient
+
+from sator.handlers.database import DatabaseHandler
 from sator.core.interfaces import HandlersInterface
+from sator.core.adapters.github.diff import DiffAdapter
 
 
 class GithubHandler(HandlersInterface, Handler):
@@ -26,167 +27,87 @@ class GithubHandler(HandlersInterface, Handler):
 
     def __init__(self, **kw):
         super().__init__(**kw)
-        self._git_api: Github = None
-        self._tokens: deque = None
-        self.lock = threading.Lock()
-
-    def has_rate_available(self):
-        return self.git_api.get_rate_limit().core.remaining > 0
+        self._git_client = None
+        self._database_handler: DatabaseHandler = None
 
     @property
-    def git_api(self):
-        with self.lock:
-            if not self._tokens:
-                tokens = self.app.pargs.tokens.split(',')
-                self._tokens = deque(tokens, maxlen=len(tokens))
+    def database_handler(self):
+        if self._database_handler is None:
+            self._database_handler = self.app.handler.get('handlers', 'database', setup=True)
 
-            if not self._git_api:
-                self._git_api = Github(self._tokens[0])
-                self._tokens.rotate(-1)
+        return self._database_handler
 
-            count = 0
-            while not self._git_api.get_rate_limit().core.remaining > 0:
-                if count == len(self._tokens):
-                    raise SatorGithubError(f"Tokens exhausted")
-                self._git_api = Github(self._tokens[0])
-                self._tokens.rotate(-1)
-                count += 1
+    @property
+    def git_client(self):
+        if self._git_client is None:
+            token = environ.get('GITHUB_TOKEN', None)
 
-            return self._git_api
+            if token is None:
+                raise ValueError("GITHUB_TOKEN variable not set")
 
-    @git_api.deleter
-    def git_api(self):
-        with self.lock:
-            self._git_api = None
+            self._git_client = GitClient(token)
 
-    def get_commit(self, repo: Repository, commit_sha: str, raise_err: bool = False) -> Union[Commit, None]:
-        # Ignore unavailable commits
-        try:
-            # self.app.log.info(f"Getting commit {commit_sha}")
-            return repo.get_commit(sha=commit_sha)
-        except (ValueError, GithubException):
-            err_msg = f"Commit {commit_sha} for repo {repo.name} unavailable: "
-        except RateLimitExceededException as rle:
-            err_msg = f"Rate limit exhausted: {rle}"
+        return self._git_client
 
-        if raise_err:
-            raise SatorGithubError(err_msg)
+    def run(self, **kwargs):
+        loader = DiffLoader(path='~/.gitlib')
 
-        self.app.log.error(err_msg)
+        diff_dict = loader.load()
+        entities = self.process(diff_dict.entries)
 
-        return None
+        print(entities)
 
-    def get_repo(self, owner: str, project: str, raise_err: bool = False) -> Union[Repository, None]:
-        repo_path = '{}/{}'.format(owner, project)
+        # self.database_handler.bulk_insert_in_order(processed_batches)
 
-        try:
-            self.app.log.info(f"Getting repo {repo_path}")
-            return self.git_api.get_repo(repo_path)
-        except RateLimitExceededException as rle:
-            err_msg = f"Rate limit exhausted: {rle}"
-        except UnknownObjectException:
-            err_msg = f"Repo not found. Skipping {owner}/{project} ..."
+    def process(self, diffs_dict: Dict[str, Diff]) -> List[Dict[str, Base]]:
+        # TODO: implement this method to
 
-        if raise_err:
-            raise SatorGithubError(err_msg)
+        res = []
 
-        self.app.log.error(err_msg)
+        for sha, diff in diffs_dict.items():
+            # TODO: provided id is a temporary solution
+            git_adapter = DiffAdapter("1", diff)
+            res.extend(git_adapter())
 
-        return None
+        return res
 
-    def get_diff(self, commit: Commit) -> str:
-        self.app.log.info(f"Requesting {commit.raw_data['html_url']}.diff")
+    # TODO: this belongs to an adapter that converts database models to objects
+    def fetch_git_data(self, language: str = None, available: bool = False):
+        session = self.app.db_con.get_session(scoped=True)
 
-        return requests.get(f"{commit.raw_data['html_url']}.diff").text
+        if language:
+            repo_query = session.query(RepositoryModel).filter(RepositoryModel.language == language)
+        else:
+            repo_query = session.query(RepositoryModel)
 
-    def get_blocks_from_diff(self, diff_text: str, extensions: list = None) -> List[DiffBlock]:
-        """
-        Parses the input diff string and returns a list of result entries.
+        self.app.log.info(f"Processing {repo_query.count()} repositories...")
 
-        :param diff_text: The input git diff string in unified diff format.
-        :param extensions: file to include from the diff based on extensions.
-        :return: A list of entries resulted from the input diff to be appended to the output csv file.
-        """
-
-        if not diff_text:
-            return []
-
-        # Look for a_path
-        lines = diff_text.splitlines()
-        diff_path_bound = [line_id for line_id in range(len(lines)) if lines[line_id].startswith("--- ")]
-        num_paths = len(diff_path_bound)
-        diff_path_bound.append(len(lines))
-        blocks = []
-
-        for path_id in range(num_paths):
-            # Only look for a_paths with the interested file extensions
-            if extensions and len(extensions) > 0:
-                ext = Path(lines[diff_path_bound[path_id]]).suffix
-
-                if ext not in extensions:
-                    continue
-
-            # Only consider file modification, ignore file additions for now
-            block_start = diff_path_bound[path_id]
-            if not lines[block_start + 1].startswith("+++ "):
-                self.app.log.warning(f"Skipping block {block_start + 1} missing +++")
+        for repo_model in tqdm(repo_query.all()):
+            # Skip repos that have been processed and are unavailable
+            if available and repo_model.available is False:
                 continue
 
-            # Ignore file deletions for now
-            if not lines[block_start + 1].endswith(" /dev/null"):
-                # Format of the "---" and "+++" lines:
-                # --- a/<a_path>
-                # +++ b/<b_path>
-                diff_block = DiffBlock(start=block_start, a_path=lines[block_start][len("--- a/"):],
-                                       b_path=lines[block_start + 1][len("+++ b/"):])
+            # If set and available, check if it has commits
+            if repo_model.available and repo_model.has_commits(available=True, has_files=True, has_parents=True):
+                self.app.log.info(f"Skipping {repo_model.owner}/{repo_model.name}...")
+                continue
 
-                # Do not include diff in the test files
-                # TODO: should be provided as a parameter
-                if "test" in diff_block.a_path or "test" in diff_block.b_path:
+            # convert repo to an object
+
+            for commit_model in tqdm(repo_model.commits, leave=False):
+                if commit_model.available is False:
                     continue
 
-                blocks.append(diff_block)
+                if (commit_model.available and commit_model.files_count is not None and
+                        len(commit_model.files) == commit_model.files_count):
+                    self.app.log.info(f"Skipping {commit_model.sha}...")
+                    continue
 
-        return blocks
+                # convert commit to an object
 
-    def get_file_from_commit(self, repo_file_path: str, commit: Commit, output_path: Path = None) \
-            -> Tuple[str, Union[None, int]]:
-        if output_path and output_path.exists() and output_path.stat().st_size != 0:
-            self.app.log.info(f"{output_path} exists, reading...")
+                # TODO: this needs to be refactored
+                parent_commits_query = session.query(CommitParentModel).filter(
+                    CommitParentModel.commit_id == commit_model.id)
+                parent_commits = [cp.parent_id for cp in parent_commits_query.all()]
 
-            with output_path.open(mode='r') as f:
-                f_str = f.read()
-        else:
-            url = f"{commit.html_url}/{repo_file_path}".replace('commit', 'raw')
-            self.app.log.info(f"Requesting {url}")
-            f_str = requests.get(url).text
-
-            if output_path:
-                self.app.log.info(f"Writing {output_path}")
-                output_path.parent.mkdir(exist_ok=True, parents=True)
-
-                with output_path.open(mode="w") as f:
-                    f.write(f_str)
-
-        if output_path:
-            return f_str, output_path.stat().st_size
-
-        return f_str, None
-
-    def get_repo_tags(self, owner: str, project: str, limit: int = None) -> List[str]:
-        repo = self.get_repo(owner=owner, project=project)
-
-        releases = repo.get_releases()
-
-        if releases.totalCount > 0:
-            if limit and releases.totalCount > limit:
-                # Return the latest n releases
-                return [release.tag_name for release in releases[:limit]]
-            else:
-                return [release.tag_name for release in releases]
-        else:
-            tags = repo.get_tags()
-            if limit and tags.totalCount > limit:
-                return [tag.name for tag in tags[:limit]]
-            else:
-                return [tag.name for tag in tags]
+                # convert parent commits to an object
