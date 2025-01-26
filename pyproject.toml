@@ -9,7 +9,7 @@ homepage = "https://github.com/epicosy/sator"
 [project]
 name="sator"
 version = "0.0.1"
-description = "application for ingestion and analysis of security vulnerabilities"
+description = "An application for analysis of security vulnerabilities in open source software projects."
 readme = "README.md"
 authors = [
     {name = "Eduard Pinconschi", email="eduard.pinconschi@tecnico.ulisboa.pt"}
@@ -32,6 +32,7 @@ dependencies = [
     "tqdm>=4.67.1",
     "arepo==3.5.0",
     "nvdutils==3.1.2",
+    "osv-utils==0.3.8",
     "github_lib==0.7.0"
 ]
 
