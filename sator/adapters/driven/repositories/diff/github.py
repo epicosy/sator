@@ -3,7 +3,7 @@ from typing import List
 from gitlib.loader import DiffLoader
 
 from sator.core.models.diff import Diff
-from sator.core.ports.driven.diff_repository import DiffRepositoryPort
+from sator.core.ports.driven.repositories.diff import DiffRepositoryPort
 from sator.adapters.driven.repositories.diff.mappers import GithubDiffMapper
 
 
