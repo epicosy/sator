@@ -1,12 +1,14 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import List
 
 from sator.core.models.diff import Diff
 
 
 class DiffRepositoryPort(ABC):
+    @abstractmethod
     def get_diff(self, commit_sha: str) -> Diff | None:
-        pass
+        raise NotImplementedError
 
+    @abstractmethod
     def get_diffs(self) -> List[Diff]:
-        pass
+        raise NotImplementedError
