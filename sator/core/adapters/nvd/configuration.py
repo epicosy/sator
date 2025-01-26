@@ -1,7 +1,7 @@
 from typing import Iterator, Union, Dict
 from sator.utils.misc import get_digest
 from nvdutils.models.configurations import Configurations
-from arepo.models.common.platform import VendorModel, ProductModel, ConfigurationModel, ConfigurationVulnerabilityModel
+from arepo.models.common.platform import VendorModel, ProductModel, ConfigurationModel
 from sator.core.adapters.base import BaseAdapter
 
 
@@ -12,7 +12,7 @@ class ConfigurationAdapter(BaseAdapter):
         self.configurations = configurations
 
     def __call__(self) -> Iterator[
-        Dict[str, Union[VendorModel, ProductModel, ConfigurationModel, ConfigurationVulnerabilityModel]]]:
+        Dict[str, Union[VendorModel, ProductModel, ConfigurationModel]]]:
         for config in self.configurations:
             # TODO: this needs a Node table
             for node in config.nodes:
@@ -59,15 +59,5 @@ class ConfigurationAdapter(BaseAdapter):
                             other=cpe_match.cpe.other,
                             vendor_id=vendor_digest,
                             product_id=product_digest
-                        )
-                    }
-
-                    _id = f"{cpe_match.criteria_id}_{self.cve_id}"
-                    self._ids[ConfigurationVulnerabilityModel.__tablename__].add(_id)
-                    # TODO: need to find a way to keep track of the configuration_id, vulnerability_id pair
-                    yield {
-                        _id: ConfigurationVulnerabilityModel(
-                            configuration_id=cpe_match.criteria_id,
-                            vulnerability_id=self.cve_id
                         )
                     }
