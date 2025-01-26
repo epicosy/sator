@@ -7,7 +7,6 @@ from pathlib import Path
 from sator.handlers.multi_task import MultiTaskHandler
 from sator.handlers.nvd import NVDHandler
 from sator.core.interfaces import HandlersInterface
-from sator.handlers.github import GithubHandler
 from sator.handlers.database import DatabaseHandler
 from sator.handlers.osv import OSVHandler
 from arepo.db import DatabaseConnection
@@ -47,7 +46,7 @@ class Sator(App):
 
         # register handlers
         handlers = [
-            Base, Source, MultiTaskHandler, GithubHandler, NVDHandler, DatabaseHandler, OSVHandler
+            Base, Source, MultiTaskHandler, NVDHandler, DatabaseHandler, OSVHandler
         ]
 
     def get_config(self, key: str):
