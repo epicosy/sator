@@ -3,10 +3,6 @@ from cement.core.exc import CaughtSignal
 from .core.exc import SatorError
 from .controllers.base import Base
 from .controllers.source import Source
-from pathlib import Path
-from sator.core.interfaces import HandlersInterface
-from sator.handlers.database import DatabaseHandler
-from arepo.db import DatabaseConnection
 
 
 class Sator(App):
@@ -37,13 +33,11 @@ class Sator(App):
         # set the output handler
         output_handler = 'jinja2'
 
-        interfaces = [
-            HandlersInterface
-        ]
+        interfaces = []
 
         # register handlers
         handlers = [
-            Base, Source, DatabaseHandler
+            Base, Source
         ]
 
     def get_config(self, key: str):
@@ -52,30 +46,6 @@ class Sator(App):
                 return self.config.get(self.Meta.label, key)
 
         return None
-
-    def setup_working_dir(self):
-        if 'working_dir' in self.config.keys('sator'):
-            working_dir = Path(self.config.get('sator', 'working_dir')).expanduser()
-        else:
-            working_dir = Path.home().parent / 'sator'
-
-            if not working_dir.exists():
-                self.log.warning(f"Working directory not found in config file. Using default path: {working_dir}")
-
-        working_dir.mkdir(exist_ok=True, parents=True)
-        self.extend('working_dir', working_dir)
-
-    def set_db(self):
-        import os
-        # get the sqlalchemy database uri from the env variable
-        uri = os.environ.get('SQLALCHEMY_DATABASE_URI', None)
-
-        if uri is None:
-            # TODO: decide if we want to pick the uri from the config file
-            raise SatorError('SQLALCHEMY_DATABASE_URI not found in the environment variables')
-
-        db_con = DatabaseConnection(uri)
-        self.extend('db_con', db_con)
 
 
 class SatorTest(TestApp, Sator):
@@ -88,8 +58,6 @@ class SatorTest(TestApp, Sator):
 def main():
     with Sator() as app:
         try:
-            app.setup_working_dir()
-            app.set_db()
             app.run()
 
         except AssertionError as e:
