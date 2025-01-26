@@ -4,7 +4,6 @@ from .core.exc import SatorError
 from .controllers.base import Base
 from .controllers.source import Source
 from pathlib import Path
-from sator.handlers.multi_task import MultiTaskHandler
 from sator.core.interfaces import HandlersInterface
 from sator.handlers.database import DatabaseHandler
 from arepo.db import DatabaseConnection
@@ -44,7 +43,7 @@ class Sator(App):
 
         # register handlers
         handlers = [
-            Base, Source, MultiTaskHandler, DatabaseHandler
+            Base, Source, DatabaseHandler
         ]
 
     def get_config(self, key: str):
