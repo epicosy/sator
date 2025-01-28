@@ -1,5 +1,5 @@
 from gitlib.common.enums import DiffLineType
-from sator.core.models.diff import Diff, Patch, DiffHunk, DiffLine
+from sator.core.models.oss.diff import Diff, Patch, DiffHunk, DiffLine
 
 
 class GithubDiffMapper:

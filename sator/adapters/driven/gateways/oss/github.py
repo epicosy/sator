@@ -1,12 +1,12 @@
 from gitlib.github.client import GitClient
 from gitlib.github.repository import GitRepo
 
-from sator.core.models.diff import Diff
-from sator.core.ports.driven.diff_gateway import DiffGatewayPort
-from sator.adapters.driven.mappers.github_diff_mapper import GithubDiffMapper
+from sator.core.models.oss.diff import Diff
+from sator.core.ports.driven.gateways.oss import OSSGatewayPort
+from sator.adapters.driven.repositories.oss.mappers import GithubDiffMapper
 
 
-class GithubDiffGateway(DiffGatewayPort):
+class GithubDiffGateway(OSSGatewayPort):
     def __init__(self, token: str):
         self.github_client = GitClient(token)
 

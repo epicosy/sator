@@ -1,8 +1,9 @@
 from cement import Controller, ex
 
-from sator import __version__
+from sator.adapters.driving.cli import __version__
 
-VERSION_BANNER = """ vulnerability database api (v%s)""" % __version__
+APP_DESCRIPTION = "OSS Vulnerability Analysis Application CLI"
+VERSION_BANNER = f"{APP_DESCRIPTION} (v{__version__})"
 
 
 class Base(Controller):
@@ -10,7 +11,7 @@ class Base(Controller):
         label = 'base'
 
         # text displayed at the top of --help output
-        description = 'vulnerability database api'
+        description = APP_DESCRIPTION
 
         # text displayed at the bottom of --help output
         epilog = 'Usage: sator run'
@@ -22,9 +23,6 @@ class Base(Controller):
 
     def __init__(self, **kw):
         super().__init__(**kw)
-
-    def _post_argument_parsing(self):
-        super()._post_argument_parsing()
 
     def _default(self):
         """Default action if no sub-command is passed."""

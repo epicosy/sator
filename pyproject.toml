@@ -31,7 +31,6 @@ dependencies = [
     "requests>=2.32.2",
     "tqdm>=4.67.1",
     "nvdutils==3.1.2",
-    "osv-utils==0.3.8",
     "github_lib==0.7.0"
 ]
 
@@ -51,4 +50,4 @@ exclude = ["ez_setup", "tests*"]
 
 
 [project.scripts]
-sator = "sator.main:main"
+sator = "sator.adapters.driving.cli.main:main"

@@ -1,8 +1,8 @@
 from cement import App, TestApp
 from cement.core.exc import CaughtSignal
-from .core.exc import SatorError
+from .exc import SatorError
 from .controllers.base import Base
-from .controllers.source import Source
+from .controllers.product import Product
 
 
 class Sator(App):
@@ -37,7 +37,7 @@ class Sator(App):
 
         # register handlers
         handlers = [
-            Base, Source
+            Base, Product
         ]
 
     def get_config(self, key: str):
