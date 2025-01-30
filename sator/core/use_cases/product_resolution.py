@@ -53,8 +53,13 @@ class ProductResolution(ProductResolutionPort):
         locators = {}
 
         references = self.product_reference_port.get_product_references(product.vendor, product.name)
+        visited = set()
 
         for reference in references:
+            if reference in visited:
+                continue
+
+            visited.add(reference)
             owner_id, repo_id = self.oss_port.get_ids_from_url(reference)
 
             if owner_id:
@@ -106,12 +111,12 @@ class ProductResolution(ProductResolutionPort):
             product_type = self.product_classifier_port.classify_product_by_type(product)
 
             # TODO: consider also the weakness type in combination with the product type to determine the score
-            products_by_score[product.name][0] += PRODUCT_TYPE_SCORES[product_type]
+            products_by_score[product.name]['score'] += PRODUCT_TYPE_SCORES[product_type]
 
             # TODO: Implement other ways to match the product name with the vulnerability description.
             for term in terms:
                 if term in product.name.lower():
-                    products_by_score[product.name] += 1
+                    products_by_score[product.name]['score'] += 1
 
         selection = max(products_by_score, key=lambda x: products_by_score[x]['score'])
 
