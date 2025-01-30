@@ -48,7 +48,10 @@ class KeywordBasedProductClassifier(ProductClassifierPort):
         name = product.name.replace('\\/', '_').replace('-', '_')
         tokens = name.split('_')
 
-        for product_type, keywords in PRODUCT_TYPE_BY_KEYWORDS[product.part]:
+        if product.part == ProductPart.OPERATING_SYSTEM:
+            return ProductType.UNDEFINED
+
+        for product_type, keywords in PRODUCT_TYPE_BY_KEYWORDS[product.part].items():
             for token in tokens:
                 if any(keyword in token for keyword in keywords):
                     return product_type
