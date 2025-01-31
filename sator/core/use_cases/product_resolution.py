@@ -6,7 +6,7 @@ from sator.core.models.product import Product, ProductOwnership, ProductLocator
 from sator.core.ports.driven.repositories.vulnerability import VulnerabilityRepositoryPort
 from sator.core.ports.driven.classifiers.product import ProductClassifierPort
 from sator.core.ports.driving.product.resolution import ProductResolutionPort
-from sator.core.ports.driven.repositories.oss import OSSRepositoryPort
+from sator.core.ports.driven.gateways.oss import OSSGatewayPort
 from sator.core.ports.driven.repositories.product import ProductReferencePort
 
 
@@ -33,7 +33,7 @@ PRODUCT_TYPE_SCORES = {
 
 class ProductResolution(ProductResolutionPort):
     def __init__(self, vulnerability_port: VulnerabilityRepositoryPort, product_classifier_port: ProductClassifierPort,
-                 product_reference_port: ProductReferencePort, oss_port: OSSRepositoryPort):
+                 product_reference_port: ProductReferencePort, oss_port: OSSGatewayPort):
         self.vulnerability_port = vulnerability_port
         self.product_classifier_port = product_classifier_port
         self.product_reference_port = product_reference_port
