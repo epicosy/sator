@@ -2,7 +2,8 @@ from cement import App, TestApp
 from cement.core.exc import CaughtSignal
 from .exc import SatorError
 from .controllers.base import Base
-from .controllers.product import Product
+from .controllers.resolution import Resolve
+from .controllers.annotation import Annotate
 
 
 class Sator(App):
@@ -37,7 +38,7 @@ class Sator(App):
 
         # register handlers
         handlers = [
-            Base, Product
+            Base, Resolve, Annotate
         ]
 
     def get_config(self, key: str):

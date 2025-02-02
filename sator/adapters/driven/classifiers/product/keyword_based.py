@@ -26,34 +26,46 @@ PRODUCT_TYPE_BY_KEYWORDS = {
     },
     ProductPart.HARDWARE: {
         ProductType.FIRMWARE: ['firmware', 'driver']
+    },
+    ProductPart.OPERATING_SYSTEM: {
+        ProductType.EMBEDDED: ['embedded', 'FreeRTOS', 'VxWorks'],
+        ProductType.SERVER: ['server'],
+        ProductType.DESKTOP: ['desktop', 'windows', 'mac', 'macOS', 'linux', 'unix'],
+        ProductType.MOBILE: ['mobile', 'android', 'ios', 'HarmonyOS', 'KaiOS']
     }
 }
 
 
 class KeywordBasedProductClassifier(ProductClassifierPort):
-    def classify_product_by_type(self, product: Product) -> ProductType:
+    def classify_product_by_part(self, product: Product) -> ProductPart:
+        # TODO: Implement this method
+        return ProductPart.UNDEFINED
+
+    def classify_product_by_type(self, product_name: str, part: ProductPart) -> ProductType:
         """
             Classify the product by type based on keywords in the product name. Product must have a part.
 
             Args:
-                product: The product to get the type for.
+                product_name: The name of the product.
+                part: The part of the product.
 
             Returns:
                 The type of the product.
         """
 
-        if product.part is None:
+        if part is None:
             raise ValueError("Product part must be provided to classify the product by type.")
 
-        name = product.name.replace('\\/', '_').replace('-', '_')
+        name = product_name.replace('\\/', '_').replace('-', '_')
         tokens = name.split('_')
 
-        if product.part == ProductPart.OPERATING_SYSTEM:
+        if part == ProductPart.UNDEFINED:
+            # TODO: this should iterate over all keywords and return the first match
             return ProductType.UNDEFINED
 
-        for product_type, keywords in PRODUCT_TYPE_BY_KEYWORDS[product.part].items():
+        for product_type, keywords in PRODUCT_TYPE_BY_KEYWORDS[part].items():
             for token in tokens:
-                if any(keyword in token for keyword in keywords):
+                if any(keyword.lower() in token.lower() for keyword in keywords):
                     return product_type
 
         return ProductType.UNDEFINED
