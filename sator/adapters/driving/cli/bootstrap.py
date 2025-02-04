@@ -2,6 +2,7 @@
 from cement.core.config import ConfigHandler
 
 # app/bootstrap.py
+from sator.core.use_cases.annotation.product import ProductAnnotation
 from sator.core.use_cases.resolution.product import ProductResolution
 from sator.core.use_cases.resolution.vulnerability import VulnerabilityResolutionUseCase
 
@@ -9,6 +10,8 @@ from sator.adapters.driven.persistence.json import JsonPersistence
 from sator.adapters.driven.gateways.oss.github import GithubGateway
 from sator.adapters.driven.repositories.product.cpe import CPEDictionary
 from sator.adapters.driven.repositories.vulnerability.nvd import NVDVulnerabilityRepository
+from sator.adapters.driven.classifiers.product.keyword_based import KeywordBasedProductClassifier
+
 
 VULN_REPOS_MAPPING = {
     "nvd": NVDVulnerabilityRepository
@@ -35,5 +38,16 @@ def create_vulnerability_resolution(config: ConfigHandler) -> VulnerabilityResol
         repository_ports=[
             VULN_REPOS_MAPPING[name](**values) for name, values in repositories.items() if name in VULN_REPOS_MAPPING
         ],
+        storage_port=JsonPersistence(persistence['json']['path'])
+    )
+
+
+def create_product_annotation(config: ConfigHandler) -> ProductAnnotation:
+    repositories = config.get('sator', 'repositories')
+    persistence = config.get('sator', 'persistence')
+
+    return ProductAnnotation(
+        product_reference_port=CPEDictionary(repositories['nvd']['path']),
+        product_classifier_port=KeywordBasedProductClassifier(),
         storage_port=JsonPersistence(persistence['json']['path'])
     )
