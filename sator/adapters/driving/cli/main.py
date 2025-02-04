@@ -4,6 +4,7 @@ from .exc import SatorError
 from .controllers.base import Base
 from .controllers.resolution import Resolve
 from .controllers.annotation import Annotate
+from .bootstrap import create_product_resolution, create_vulnerability_resolution
 
 
 class Sator(App):
@@ -58,6 +59,12 @@ class SatorTest(TestApp, Sator):
 
 def main():
     with Sator() as app:
+        product_resolution = create_product_resolution(app.config)
+        vulnerability_resolution = create_vulnerability_resolution(app.config)
+        # TODO: find a way to pass these to the Resolve controller
+        app.product_resolution = product_resolution
+        app.vulnerability_resolution = vulnerability_resolution
+
         try:
             app.run()
 
