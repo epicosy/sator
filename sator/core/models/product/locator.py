@@ -1,9 +1,8 @@
-from dataclasses import dataclass
+from pydantic import BaseModel
 from sator.core.models.product import Product
 
 
-@dataclass
-class ProductOwnership:
+class ProductOwnership(BaseModel):
     product: Product
     owner_id: int
 
@@ -17,8 +16,7 @@ class ProductOwnership:
         return self.product == other.product and self.owner_id == other.owner_id
 
 
-@dataclass
-class ProductLocator:
+class ProductLocator(BaseModel):
     product_ownership: ProductOwnership
     repository_id: int
 

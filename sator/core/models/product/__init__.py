@@ -1,8 +1,8 @@
-from dataclasses import dataclass
+from pydantic import BaseModel
+from typing import List, Iterator
 
 
-@dataclass
-class Product:
+class Product(BaseModel):
     name: str
     vendor: str
 
@@ -14,3 +14,11 @@ class Product:
             return False
 
         return self.name == other.name and self.vendor == other.vendor
+
+
+class AffectedProducts(BaseModel):
+    vulnerability_id: str
+    products: List[Product]
+
+    def __iter__(self) -> Iterator[Product]:
+        return iter(self.products)

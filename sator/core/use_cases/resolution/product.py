@@ -1,7 +1,7 @@
 from typing import Dict, List
 
-from sator.core.models.product import Product
 from sator.core.models.enums import ProductPart, ProductType
+from sator.core.models.product import Product, AffectedProducts
 from sator.core.models.product.descriptor import ProductDescriptor
 from sator.core.models.product.locator import ProductOwnership, ProductLocator
 
@@ -42,38 +42,51 @@ class ProductResolution(ProductResolutionPort):
         self.oss_port = oss_port
         self.storage_port = storage_port
 
-    def get_product_locators(self, vendor_name: str, product_name: str) -> Dict[int, ProductLocator]:
+    def get_product_locators(self, vulnerability_id: str) -> Dict[str, ProductLocator]:
         """
             Get the product locators for the given product.
-
-            Args:
-                vendor_name: The name of the vendor.
-                product_name: The name of the product.
 
             Returns:
                 A dictionary of product locators with the repository id as the key.
         """
 
+        affected_products = self.storage_port.load(AffectedProducts, vulnerability_id)
+
+        if not affected_products:
+            return {}
+
         locators = {}
 
-        references = self.product_reference_port.get_product_references(vendor_name, product_name)
-        visited = set()
+        for product in affected_products:
+            product_key = f"{product.vendor} {product.name}"
 
-        for reference in references:
-            if reference in visited:
+            if product_key in locators:
                 continue
 
-            visited.add(reference)
-            owner_id, repo_id = self.oss_port.get_ids_from_url(reference)
+            product_locator = self.storage_port.load(ProductLocator, product_key)
 
-            if owner_id:
-                product_ownership = ProductOwnership(Product(vendor=vendor_name, name=product_name), owner_id)
+            if product_locator:
+                locators[product_key] = product_locator
+                continue
 
-                if repo_id:
-                    product_locator = ProductLocator(product_ownership, repo_id)
+            references = self.product_reference_port.get_product_references(product)
+            visited = set()
 
-                    if repo_id not in locators:
-                        locators[repo_id] = product_locator
+            for reference in references:
+                if reference in visited:
+                    continue
+
+                visited.add(reference)
+                owner_id, repo_id = self.oss_port.get_ids_from_url(reference)
+
+                if owner_id:
+                    product_ownership = ProductOwnership(product=product, owner_id=owner_id)
+
+                    if repo_id:
+                        product_locator = ProductLocator(product_ownership=product_ownership, repository_id=repo_id)
+                        locators[product_key] = product_locator
+
+                        self.storage_port.save(product_locator, product_key)
 
         return locators
 

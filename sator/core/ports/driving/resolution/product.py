@@ -8,7 +8,7 @@ from sator.core.models.product.locator import ProductLocator
 class ProductResolutionPort(ABC):
 
     @abstractmethod
-    def get_product_locators(self, vendor_name: str, product_name: str) -> Dict[int, ProductLocator]:
+    def get_product_locators(self, vulnerability_id: str) -> Dict[str, ProductLocator]:
         """Method for getting product locators."""
         raise NotImplementedError
 

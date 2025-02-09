@@ -24,7 +24,7 @@ def create_product_resolution(config: ConfigHandler) -> ProductResolution:
     persistence = config.get('sator', 'persistence')
 
     return ProductResolution(
-        product_reference_port=CPEDictionary(repositories['nvd']['path']),
+        product_reference_port=CPEDictionary(repositories['cpe']['path']),
         oss_port=GithubGateway(gateways['github']["login"]),
         storage_port=JsonPersistence(persistence['json']['path'])
     )

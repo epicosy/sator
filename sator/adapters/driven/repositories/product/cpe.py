@@ -34,8 +34,8 @@ class CPEDictionary(ProductReferencePort):
 
         return None
 
-    def get_product_references(self, vendor_name: str, product_name: str) -> List[str]:
-        cpe_dict = self.loader.load(vendor_name=vendor_name, product_name=product_name)
+    def get_product_references(self, product: Product) -> List[str]:
+        cpe_dict = self.loader.load(vendor_name=product.vendor, product_name=product.name)
 
         return [ref.href for ref in cpe_dict.get_references()]
 

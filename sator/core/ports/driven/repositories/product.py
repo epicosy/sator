@@ -15,7 +15,7 @@ class ProductReferencePort(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_product_references(self, vendor_name: str, product_name: str) -> List[str]:
+    def get_product_references(self, product: Product) -> List[str]:
         raise NotImplementedError
 
     @abstractmethod

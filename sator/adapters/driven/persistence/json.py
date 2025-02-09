@@ -1,8 +1,8 @@
 import json
-
 from pathlib import Path
 
-
+from sator.core.models.product import AffectedProducts
+from sator.core.models.product.locator import ProductLocator
 from sator.core.models.vulnerability import Vulnerability
 from sator.core.models.product.descriptor import ProductDescriptor
 from sator.core.ports.driven.persistence.storage import StoragePersistencePort, T
@@ -11,6 +11,8 @@ from sator.core.ports.driven.persistence.storage import StoragePersistencePort, 
 PATHS_BY_ENTITY = {
     ProductDescriptor: "descriptors",
     Vulnerability: "vulnerabilities",
+    AffectedProducts: "affected_products",
+    ProductLocator: "locators"
 }
 
 
@@ -25,7 +27,7 @@ class JsonPersistence(StoragePersistencePort):
         """Persist an entity as a JSON file in a dynamic folder structure."""
 
         # check if the entity has the method dump
-        if not hasattr(entity, "dump"):
+        if not hasattr(entity, "model_dump"):
             return False
 
         file_path = self.base_folder / PATHS_BY_ENTITY[type(entity)] / f"{entity_id}.json"
@@ -34,7 +36,7 @@ class JsonPersistence(StoragePersistencePort):
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
         with open(file_path, "w", encoding="utf-8") as f:
-            data = entity.dump()
+            data = entity.model_dump()
             json.dump(data, f, indent=4)
 
         return True
@@ -48,6 +50,6 @@ class JsonPersistence(StoragePersistencePort):
         with open(file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
-        return Vulnerability(
+        return entity(
             **data
         )
