@@ -42,7 +42,7 @@ class ProductResolution(ProductResolutionPort):
         self.oss_port = oss_port
         self.storage_port = storage_port
 
-    def get_product_locators(self, vulnerability_id: str) -> Dict[str, ProductLocator]:
+    def get_locators(self, vulnerability_id: str) -> Dict[str, ProductLocator]:
         """
             Get the product locators for the given product.
 
@@ -77,7 +77,7 @@ class ProductResolution(ProductResolutionPort):
                     continue
 
                 visited.add(reference)
-                owner_id, repo_id = self.oss_port.get_ids_from_url(reference)
+                owner_id, repo_id, _ = self.oss_port.get_ids_from_url(reference)
 
                 if owner_id:
                     product_ownership = ProductOwnership(product=product, owner_id=owner_id)

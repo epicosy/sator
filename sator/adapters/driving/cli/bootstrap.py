@@ -33,12 +33,14 @@ def create_product_resolution(config: ConfigHandler) -> ProductResolution:
 def create_vulnerability_resolution(config: ConfigHandler) -> VulnerabilityResolutionUseCase:
     repositories = config.get('sator', 'repositories')
     persistence = config.get('sator', 'persistence')
+    gateways = config.get('sator', 'gateways')
 
     return VulnerabilityResolutionUseCase(
         repository_ports=[
             VULN_REPOS_MAPPING[name](**values) for name, values in repositories.items() if name in VULN_REPOS_MAPPING
         ],
-        storage_port=JsonPersistence(persistence['json']['path'])
+        storage_port=JsonPersistence(persistence['json']['path']),
+        oss_port=GithubGateway(gateways['github']["login"])
     )
 
 

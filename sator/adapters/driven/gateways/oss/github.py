@@ -1,7 +1,9 @@
-from typing import Tuple
+from datetime import datetime
+from typing import Tuple, List
 
 from gitlib.github.client import GitClient
 from gitlib.github.repository import GitRepo
+from gitlib.models.url.commit import GithubCommitUrl
 from gitlib.parsers.url.base import GithubUrlParser
 
 from sator.core.models.oss.diff import Diff
@@ -12,6 +14,22 @@ from sator.adapters.driven.repositories.oss.mappers import GithubDiffMapper
 class GithubGateway(OSSGatewayPort):
     def __init__(self, login: str):
         self.github_client = GitClient(login)
+
+    def search(self, repo_id: str, start_date: datetime, end_date: datetime, n: int) -> List[str]:
+        repo = self.github_client.git_api.get_repo(repo_id)
+        git_repo = GitRepo(repo)
+
+        if git_repo:
+            print(f"Searching for {n} commits in {git_repo.repo.full_name} repository "
+                  f"between {start_date.date()} and {end_date.date()}.")
+            commits = git_repo.repo.get_commits(since=start_date, until=end_date)
+
+            if commits.totalCount > n:
+                return [commit.sha for commit in commits[:n]]
+
+            return [commit.sha for commit in commits]
+
+        return []
 
     def get_diff(self, repo_id: str, commit_sha: str) -> Diff | None:
         # TODO: gitlib needs a method that fetches the repo by id or change the method signature to accept the repo path
@@ -27,7 +45,7 @@ class GithubGateway(OSSGatewayPort):
 
         return None
 
-    def get_ids_from_url(self, url: str) -> Tuple[int | None, int | None]:
+    def get_ids_from_url(self, url: str) -> Tuple[int | None, int | None, str | None]:
         github_url_parser = GithubUrlParser(url)
         github_object = github_url_parser()
 
@@ -35,7 +53,11 @@ class GithubGateway(OSSGatewayPort):
             git_repo = self.github_client.get_repo(github_object.owner, github_object.repo)
 
             if git_repo:
-                return git_repo.owner.id, git_repo.id
+                if isinstance(github_object, GithubCommitUrl):
+                    # TODO: check also the commit for availability
+                    return git_repo.owner.id, git_repo.id, github_object.sha
 
-        return None, None
+                return git_repo.owner.id, git_repo.id, None
+
+        return None, None, None
 
