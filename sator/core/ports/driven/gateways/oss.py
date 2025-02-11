@@ -7,7 +7,7 @@ from sator.core.models.oss.diff import Diff
 
 class OSSGatewayPort(ABC):
     @abstractmethod
-    def get_diff(self, repo_id: str, commit_sha: str) -> Diff | None:
+    def get_diff(self, repo_id: int, commit_sha: str) -> Diff | None:
         raise NotImplementedError
 
     @abstractmethod

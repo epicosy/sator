@@ -1,9 +1,8 @@
+from pydantic import BaseModel
 from typing import List, Iterator
-from dataclasses import dataclass
 
 
-@dataclass
-class DiffLine:
+class DiffLine(BaseModel):
     type: str
     lineno: int
     content: str
@@ -12,8 +11,7 @@ class DiffLine:
         return self.content
 
 
-@dataclass
-class DiffHunk:
+class DiffHunk(BaseModel):
     old_start: int
     old_lines: List[DiffLine]
     new_start: int
@@ -26,8 +24,7 @@ class DiffHunk:
         return "\n".join(str(line) for line in self)
 
 
-@dataclass
-class Patch:
+class Patch(BaseModel):
     old_file: str
     new_file: str
     hunks: List[DiffHunk]
@@ -39,8 +36,7 @@ class Patch:
         return "\n".join(str(hunk) for hunk in self.hunks)
 
 
-@dataclass
-class Diff:
+class Diff(BaseModel):
     commit_sha: str
     patches: List[Patch]
 

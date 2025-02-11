@@ -41,3 +41,13 @@ class Resolve(Controller):
         else:
             affected_products = self.app.vulnerability_resolution.get_affected_products(self.app.pargs.vuln_id)
             print(f'Affected Products: {affected_products}')
+
+    @ex(
+        help='Resolves the specified vulnerability',
+        arguments=[
+            (['-vid', '--vuln_id'], {'help': 'vulnerability id', 'type': str, 'required': True})
+        ]
+    )
+    def diff(self):
+        diff = self.app.diff_resolution.get_diff(self.app.pargs.vuln_id)
+        print(f'{diff.commit_sha} Diff: {diff}')

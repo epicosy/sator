@@ -2,6 +2,7 @@
 from cement.core.config import ConfigHandler
 
 # app/bootstrap.py
+from sator.core.use_cases.resolution.diff import DiffResolution
 from sator.core.use_cases.annotation.product import ProductAnnotation
 from sator.core.use_cases.resolution.product import ProductResolution
 from sator.core.use_cases.resolution.vulnerability import VulnerabilityResolutionUseCase
@@ -41,6 +42,16 @@ def create_vulnerability_resolution(config: ConfigHandler) -> VulnerabilityResol
         ],
         storage_port=JsonPersistence(persistence['json']['path']),
         oss_port=GithubGateway(gateways['github']["login"])
+    )
+
+
+def create_diff_resolution(config: ConfigHandler) -> DiffResolution:
+    gateways = config.get('sator', 'gateways')
+    persistence = config.get('sator', 'persistence')
+
+    return DiffResolution(
+        oss_port=GithubGateway(gateways['github']["login"]),
+        storage_port=JsonPersistence(persistence['json']['path'])
     )
 
 

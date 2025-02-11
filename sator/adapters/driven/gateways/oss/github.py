@@ -31,7 +31,7 @@ class GithubGateway(OSSGatewayPort):
 
         return []
 
-    def get_diff(self, repo_id: str, commit_sha: str) -> Diff | None:
+    def get_diff(self, repo_id: int, commit_sha: str) -> Diff | None:
         # TODO: gitlib needs a method that fetches the repo by id or change the method signature to accept the repo path
         repo = self.github_client.git_api.get_repo(repo_id)
         git_repo = GitRepo(repo)
