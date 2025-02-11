@@ -25,3 +25,14 @@ class Annotate(Controller):
         )
 
         print(product_descriptor)
+
+    @ex(
+        help='Gets data from the specified source',
+        arguments=[
+            (['-vid', '--vulnerability_id'], {'help': 'vulnerability id', 'type': str, 'required': True})
+        ]
+    )
+    def diff(self):
+        diff_annotation = self.app.diff_annotation.annotate_diff(self.app.pargs.vulnerability_id)
+
+        print(diff_annotation)

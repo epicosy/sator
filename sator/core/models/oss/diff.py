@@ -17,6 +17,14 @@ class DiffHunk(BaseModel):
     new_start: int
     new_lines: List[DiffLine]
 
+    @property
+    def old_code(self):
+        return "\n".join(str(line) for line in self.old_lines)
+
+    @property
+    def new_code(self):
+        return "\n".join(str(line) for line in self.new_lines)
+
     def __iter__(self) -> Iterator[DiffLine]:
         return iter(self.old_lines + self.new_lines)
 

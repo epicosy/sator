@@ -4,7 +4,8 @@ from .exc import SatorError
 from .controllers.base import Base
 from .controllers.resolution import Resolve
 from .controllers.annotation import Annotate
-from .bootstrap import create_product_resolution, create_vulnerability_resolution, create_product_annotation, create_diff_resolution
+from .bootstrap import (create_product_resolution, create_vulnerability_resolution, create_product_annotation,
+                        create_diff_resolution, create_diff_annotation)
 
 
 class Sator(App):
@@ -63,11 +64,13 @@ def main():
         vulnerability_resolution = create_vulnerability_resolution(app.config)
         diff_resolution = create_diff_resolution(app.config)
         product_annotation = create_product_annotation(app.config)
+        diff_annotation = create_diff_annotation(app.config)
         # TODO: find a way to pass these to the Resolve controller
         app.diff_resolution = diff_resolution
         app.product_resolution = product_resolution
         app.vulnerability_resolution = vulnerability_resolution
         app.product_annotation = product_annotation
+        app.diff_annotation = diff_annotation
 
         try:
             app.run()
