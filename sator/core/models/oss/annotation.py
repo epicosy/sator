@@ -14,7 +14,7 @@ class DiffHunkAnnotation(BaseModel):
 
 
 class PatchAnnotation(BaseModel):
-    old_file: str
+    new_file: str
     hunks: List[DiffHunkAnnotation]
 
 

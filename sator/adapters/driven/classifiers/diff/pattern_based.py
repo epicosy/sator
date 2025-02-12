@@ -77,7 +77,7 @@ class PatternBasedDiffClassifier(DiffClassifierPort):
 
                 hunks.append(hunk_annotation)
 
-            patch_annotation = PatchAnnotation(old_file=patch.old_file, hunks=hunks)
+            patch_annotation = PatchAnnotation(new_file=patch.new_file, hunks=hunks)
             patches.append(patch_annotation)
 
         return DiffAnnotation(commit_sha=diff.commit_sha, patches=patches) if patches else None

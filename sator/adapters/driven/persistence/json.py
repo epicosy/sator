@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 from sator.core.models.oss.diff import Diff
+from sator.core.models.oss.annotation import DiffAnnotation
 from sator.core.models.product import AffectedProducts
 from sator.core.models.product.locator import ProductLocator
 from sator.core.models.vulnerability import Vulnerability
@@ -16,7 +17,8 @@ PATHS_BY_ENTITY = {
     AffectedProducts: "affected_products",
     ProductLocator: "product_locators",
     VulnerabilityLocator: "vulnerability_locators",
-    Diff: "diffs"
+    Diff: "diffs",
+    DiffAnnotation: "diff_annotations",
 }
 
 

@@ -2,8 +2,8 @@
 from cement.core.config import ConfigHandler
 
 # app/bootstrap.py
+from sator.core.use_cases.annotation.diff import DiffAnnotator
 from sator.core.use_cases.resolution.diff import DiffResolution
-from sator.core.use_cases.annotation.diff import DiffAnnotation
 from sator.core.use_cases.annotation.product import ProductAnnotation
 from sator.core.use_cases.resolution.product import ProductResolution
 from sator.core.use_cases.resolution.vulnerability import VulnerabilityResolutionUseCase
@@ -69,11 +69,11 @@ def create_product_annotation(config: ConfigHandler) -> ProductAnnotation:
     )
 
 
-def create_diff_annotation(config: ConfigHandler) -> DiffAnnotation:
+def create_diff_annotation(config: ConfigHandler) -> DiffAnnotator:
     persistence = config.get('sator', 'persistence')
 
     # TODO: diff_classifier hardcoded as temporary solution
-    return DiffAnnotation(
+    return DiffAnnotator(
         diff_classifier_port=PatternBasedDiffClassifier(),
         storage_port=JsonPersistence(persistence['json']['path'])
     )
