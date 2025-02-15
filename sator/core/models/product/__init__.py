@@ -22,3 +22,11 @@ class AffectedProducts(BaseModel):
 
     def __iter__(self) -> Iterator[Product]:
         return iter(self.products)
+
+    def __str__(self):
+        _str = f"Vulnerability ID: {self.vulnerability_id}\n"
+
+        for product in self.products:
+            _str += f"\t{product}\n"
+
+        return _str

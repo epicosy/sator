@@ -2,18 +2,20 @@
 from cement.core.config import ConfigHandler
 
 # app/bootstrap.py
+from sator.core.use_cases.analysis.diff import DiffAnalysis
 from sator.core.use_cases.annotation.diff import DiffAnnotator
 from sator.core.use_cases.resolution.diff import DiffResolution
 from sator.core.use_cases.annotation.product import ProductAnnotation
 from sator.core.use_cases.resolution.product import ProductResolution
 from sator.core.use_cases.resolution.vulnerability import VulnerabilityResolutionUseCase
 
+from sator.adapters.driven.analyzers.diff.score_based import ScoreBasedDiffAnalyzer
 from sator.adapters.driven.persistence.json import JsonPersistence
 from sator.adapters.driven.gateways.oss.github import GithubGateway
 from sator.adapters.driven.repositories.product.cpe import CPEDictionary
 from sator.adapters.driven.repositories.vulnerability.nvd import NVDVulnerabilityRepository
 from sator.adapters.driven.classifiers.product.keyword_based import KeywordBasedProductClassifier
-from sator.adapters.driven.classifiers.diff.pattern_based import PatternBasedDiffClassifier
+from sator.adapters.driven.classifiers.diff.rule_based import RuleBasedDiffClassifier
 
 
 VULN_REPOS_MAPPING = {
@@ -74,6 +76,16 @@ def create_diff_annotation(config: ConfigHandler) -> DiffAnnotator:
 
     # TODO: diff_classifier hardcoded as temporary solution
     return DiffAnnotator(
-        diff_classifier_port=PatternBasedDiffClassifier(),
+        diff_classifier_port=RuleBasedDiffClassifier(),
+        storage_port=JsonPersistence(persistence['json']['path'])
+    )
+
+
+def create_diff_analysis(config: ConfigHandler) -> DiffAnalysis:
+    persistence = config.get('sator', 'persistence')
+
+    # TODO: diff_classifier hardcoded as temporary solution
+    return DiffAnalysis(
+        diff_analyzer=ScoreBasedDiffAnalyzer(),
         storage_port=JsonPersistence(persistence['json']['path'])
     )

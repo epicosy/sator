@@ -41,7 +41,8 @@ class GithubGateway(OSSGatewayPort):
         if commit:
             diff = commit.get_diff()
 
-            return GithubDiffMapper.map_diff(commit_sha, diff)
+            if commit.parents:
+                return GithubDiffMapper.map_diff(commit_sha, commit.parents[0].sha, diff)
 
         return None
 

@@ -37,10 +37,10 @@ class Resolve(Controller):
     def products(self):
         if self.app.pargs.locators:
             locators = self.app.product_resolution.get_locators(self.app.pargs.vuln_id)
-            print(f'Product Locators: {locators}')
+            print(locators)
         else:
             affected_products = self.app.vulnerability_resolution.get_affected_products(self.app.pargs.vuln_id)
-            print(f'Affected Products: {affected_products}')
+            print(affected_products)
 
     @ex(
         help='Resolves the specified vulnerability',
@@ -50,4 +50,4 @@ class Resolve(Controller):
     )
     def diff(self):
         diff = self.app.diff_resolution.get_diff(self.app.pargs.vuln_id)
-        print(f'{diff.commit_sha} Diff: {diff}')
+        print(diff)

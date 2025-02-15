@@ -12,6 +12,7 @@ class DiffLine(BaseModel):
 
 
 class DiffHunk(BaseModel):
+    order: int
     old_start: int
     old_lines: List[DiffLine]
     new_start: int
@@ -29,7 +30,12 @@ class DiffHunk(BaseModel):
         return iter(self.old_lines + self.new_lines)
 
     def __str__(self):
-        return "\n".join(str(line) for line in self)
+        _str = f"Old Start: {self.old_start} | New Start: {self.new_start}"
+
+        for line in self:
+            _str += f"\n{line}"
+
+        return _str
 
 
 class Patch(BaseModel):
@@ -41,15 +47,26 @@ class Patch(BaseModel):
         return iter(self.hunks)
 
     def __str__(self):
-        return "\n".join(str(hunk) for hunk in self.hunks)
+        _str = f"Old File: {self.old_file} | New File: {self.new_file}"
+
+        for hunk in self.hunks:
+            _str += f"\n\t{hunk}"
+
+        return _str
 
 
 class Diff(BaseModel):
     commit_sha: str
+    parent_commit_sha: str
     patches: List[Patch]
 
     def __iter__(self) -> Iterator[Patch]:
         return iter(self.patches)
 
     def __str__(self):
-        return "\n".join(str(patch) for patch in self.patches)
+        _str = f"Commit: {self.commit_sha}"
+
+        for patch in self.patches:
+            _str += f"\n\t{patch}"
+
+        return _str
