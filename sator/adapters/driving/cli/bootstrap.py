@@ -7,6 +7,7 @@ from sator.core.use_cases.annotation.diff import DiffAnnotator
 from sator.core.use_cases.resolution.diff import DiffResolution
 from sator.core.use_cases.annotation.product import ProductAnnotation
 from sator.core.use_cases.resolution.product import ProductResolution
+from sator.core.use_cases.extraction.details import DetailsExtraction
 from sator.core.use_cases.resolution.vulnerability import VulnerabilityResolutionUseCase
 
 from sator.adapters.driven.analyzers.diff.score_based import ScoreBasedDiffAnalyzer
@@ -16,6 +17,7 @@ from sator.adapters.driven.repositories.product.cpe import CPEDictionary
 from sator.adapters.driven.repositories.vulnerability.nvd import NVDVulnerabilityRepository
 from sator.adapters.driven.classifiers.product.keyword_based import KeywordBasedProductClassifier
 from sator.adapters.driven.classifiers.diff.rule_based import RuleBasedDiffClassifier
+from sator.adapters.driven.extractors.details.regex_based import RegexDetailsExtractor
 
 
 VULN_REPOS_MAPPING = {
@@ -89,3 +91,14 @@ def create_diff_analysis(config: ConfigHandler) -> DiffAnalysis:
         diff_analyzer=ScoreBasedDiffAnalyzer(),
         storage_port=JsonPersistence(persistence['json']['path'])
     )
+
+
+def create_details_extractor(config: ConfigHandler) -> DetailsExtraction:
+    persistence = config.get('sator', 'persistence')
+
+    # TODO: vulnerability_extractor hardcoded as temporary solution
+    return DetailsExtraction(
+        details_extractor=RegexDetailsExtractor(),
+        storage_port=JsonPersistence(persistence['json']['path'])
+    )
+

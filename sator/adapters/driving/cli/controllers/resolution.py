@@ -32,17 +32,6 @@ class Resolve(Controller):
         description = self.app.vulnerability_resolution.get_description(self.app.pargs.vuln_id)
         print(f'Description: {description}')
 
-    # @ex(
-    #     help='Resolves the specified vulnerability',
-    #     arguments=[
-    #         (['-vid', '--vuln_id'], {'help': 'vulnerability id', 'type': str, 'required': True}),
-    #         (['-l', '--locators'], {'help': 'resolve product locators', 'action': 'store_true'})
-    #     ]
-    # )
-    # def vulnerability(self):
-    #     locators = self.app.vulnerability_resolution.get_locator(self.app.pargs.vuln_id)
-    #     print(f'Locators: {locators}')
-
     @ex(
         help='Resolves the affected products for the specified vulnerability (already resolved)',
         arguments=[

@@ -3,10 +3,11 @@ from cement.core.exc import CaughtSignal
 from .exc import SatorError
 from .controllers.base import Base
 from .controllers.analysis import Analyze
+from .controllers.extraction import Extract
 from .controllers.resolution import Resolve
 from .controllers.annotation import Annotate
 from .bootstrap import (create_product_resolution, create_vulnerability_resolution, create_product_annotation,
-                        create_diff_resolution, create_diff_annotation, create_diff_analysis)
+                        create_diff_resolution, create_diff_annotation, create_diff_analysis, create_details_extractor)
 
 
 class Sator(App):
@@ -41,7 +42,7 @@ class Sator(App):
 
         # register handlers
         handlers = [
-            Base, Resolve, Annotate, Analyze
+            Base, Resolve, Annotate, Analyze, Extract
         ]
 
     def get_config(self, key: str):
@@ -67,6 +68,7 @@ def main():
         product_annotation = create_product_annotation(app.config)
         diff_annotation = create_diff_annotation(app.config)
         diff_analysis = create_diff_analysis(app.config)
+        details_extraction = create_details_extractor(app.config)
         # TODO: find a way to pass these to the Resolve controller
         app.diff_resolution = diff_resolution
         app.product_resolution = product_resolution
@@ -74,6 +76,7 @@ def main():
         app.product_annotation = product_annotation
         app.diff_annotation = diff_annotation
         app.diff_analysis = diff_analysis
+        app.details_extraction = details_extraction
 
         try:
             app.run()
