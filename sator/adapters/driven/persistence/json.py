@@ -6,18 +6,20 @@ from sator.core.models.bug import BugLocator
 from sator.core.models.oss.annotation import DiffAnnotation
 from sator.core.models.product import AffectedProducts
 from sator.core.models.product.locator import ProductLocator
-from sator.core.models.vulnerability import Vulnerability
 from sator.core.models.vulnerability.locator import VulnerabilityLocator
+from sator.core.models.vulnerability.metadata import VulnerabilityMetadata
+from sator.core.models.vulnerability.description import VulnerabilityDescription
 from sator.core.models.product.descriptor import ProductDescriptor
 from sator.core.ports.driven.persistence.storage import StoragePersistencePort, T
 
 
 PATHS_BY_ENTITY = {
     ProductDescriptor: "descriptors",
-    Vulnerability: "vulnerabilities",
+    VulnerabilityMetadata: "vulnerability/metadata",
+    VulnerabilityLocator: "vulnerability/locators",
+    VulnerabilityDescription: "vulnerability/descriptions",
     AffectedProducts: "affected_products",
     ProductLocator: "product_locators",
-    VulnerabilityLocator: "vulnerability_locators",
     Diff: "diffs",
     DiffAnnotation: "diff_annotations",
     BugLocator: "bug_locators",

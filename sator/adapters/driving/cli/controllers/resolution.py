@@ -13,19 +13,35 @@ class Resolve(Controller):
         super().__init__(**kw)
 
     @ex(
-        help='Resolves the specified vulnerability',
+        help='Resolves the metadata for the specified vulnerability',
         arguments=[
-            (['-vid', '--vuln_id'], {'help': 'vulnerability id', 'type': str, 'required': True}),
-            (['-l', '--locators'], {'help': 'resolve product locators', 'action': 'store_true'})
+            (['-vid', '--vuln_id'], {'help': 'vulnerability id', 'type': str, 'required': True})
         ]
     )
-    def vulnerability(self):
-        if self.app.pargs.locators:
-            locators = self.app.vulnerability_resolution.get_locator(self.app.pargs.vuln_id)
-            print(f'Locators: {locators}')
-        else:
-            vulnerability = self.app.vulnerability_resolution.get_vulnerability(self.app.pargs.vuln_id)
-            print(f'Vulnerability: {vulnerability}')
+    def metadata(self):
+        metadata = self.app.vulnerability_resolution.get_metadata(self.app.pargs.vuln_id)
+        print(f'Metadata: {metadata}')
+
+    @ex(
+        help='Resolves the description for the specified vulnerability',
+        arguments=[
+            (['-vid', '--vuln_id'], {'help': 'vulnerability id', 'type': str, 'required': True})
+        ]
+    )
+    def description(self):
+        description = self.app.vulnerability_resolution.get_description(self.app.pargs.vuln_id)
+        print(f'Description: {description}')
+
+    # @ex(
+    #     help='Resolves the specified vulnerability',
+    #     arguments=[
+    #         (['-vid', '--vuln_id'], {'help': 'vulnerability id', 'type': str, 'required': True}),
+    #         (['-l', '--locators'], {'help': 'resolve product locators', 'action': 'store_true'})
+    #     ]
+    # )
+    # def vulnerability(self):
+    #     locators = self.app.vulnerability_resolution.get_locator(self.app.pargs.vuln_id)
+    #     print(f'Locators: {locators}')
 
     @ex(
         help='Resolves the affected products for the specified vulnerability (already resolved)',

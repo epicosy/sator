@@ -81,3 +81,13 @@ class DiffContentType(str, Enum):
     WHITESPACE = "Whitespace"
     COMMENT = "Comment"
     UNDEFINED = "Undefined"
+
+
+class DescriptionType(str, Enum):
+    """
+        Enum for different types of descriptions.
+    """
+    CVE = "CVE"
+    OTHER = "Other"
+    # TODO: add more description types
+
