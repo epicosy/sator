@@ -7,7 +7,8 @@ from .controllers.extraction import Extract
 from .controllers.resolution import Resolve
 from .controllers.annotation import Annotate
 from .bootstrap import (create_product_resolution, create_vulnerability_resolution, create_product_annotation,
-                        create_diff_resolution, create_diff_annotation, create_diff_analysis, create_details_extractor)
+                        create_diff_resolution, create_diff_annotation, create_diff_analysis, create_details_extractor,
+                        create_details_annotation)
 
 
 class Sator(App):
@@ -62,11 +63,13 @@ class SatorTest(TestApp, Sator):
 
 def main():
     with Sator() as app:
+        # TODO: find a way to do this in a more elegant way, it is getting out of hand
         product_resolution = create_product_resolution(app.config)
         vulnerability_resolution = create_vulnerability_resolution(app.config)
         diff_resolution = create_diff_resolution(app.config)
         product_annotation = create_product_annotation(app.config)
         diff_annotation = create_diff_annotation(app.config)
+        details_annotation = create_details_annotation(app.config)
         diff_analysis = create_diff_analysis(app.config)
         details_extraction = create_details_extractor(app.config)
         # TODO: find a way to pass these to the Resolve controller
@@ -75,6 +78,7 @@ def main():
         app.vulnerability_resolution = vulnerability_resolution
         app.product_annotation = product_annotation
         app.diff_annotation = diff_annotation
+        app.details_annotation = details_annotation
         app.diff_analysis = diff_analysis
         app.details_extraction = details_extraction
 

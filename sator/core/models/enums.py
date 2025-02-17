@@ -91,3 +91,21 @@ class DescriptionType(str, Enum):
     OTHER = "Other"
     # TODO: add more description types
 
+
+class ImpactType(str, Enum):
+    """
+        Enum for different types of impacts.
+    """
+    DENIAL_OF_SERVICE = "Denial of Service"
+    INFORMATION_DISCLOSURE = "Information Disclosure"
+    CODE_EXECUTION = "Code Execution"
+    PRIVILEGE_ESCALATION = "Privilege Escalation"
+
+
+class WeaknessType(str, Enum):
+    """
+    Enum for different types of weaknesses.
+    """
+    MEMORY_SAFETY = "Memory Safety"
+    TYPE_SAFETY = "Type Safety"
+    INPUT_SAFETY = "Input Safety"

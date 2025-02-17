@@ -9,6 +9,7 @@ from sator.core.models.product.locator import ProductLocator
 from sator.core.models.vulnerability.locator import VulnerabilityLocator
 from sator.core.models.vulnerability.details import VulnerabilityDetails
 from sator.core.models.vulnerability.metadata import VulnerabilityMetadata
+from sator.core.models.vulnerability.descriptor import VulnerabilityDescriptor
 from sator.core.models.vulnerability.description import VulnerabilityDescription
 from sator.core.models.product.descriptor import ProductDescriptor
 from sator.core.ports.driven.persistence.storage import StoragePersistencePort, T
@@ -19,6 +20,7 @@ PATHS_BY_ENTITY = {
     VulnerabilityDetails: "vulnerability/details",
     VulnerabilityLocator: "vulnerability/locators",
     VulnerabilityMetadata: "vulnerability/metadata",
+    VulnerabilityDescriptor: "vulnerability/descriptors",
     VulnerabilityDescription: "vulnerability/descriptions",
     AffectedProducts: "affected_products",
     ProductLocator: "product_locators",

@@ -13,7 +13,7 @@ class Annotate(Controller):
         super().__init__(**kw)
 
     @ex(
-        help='Gets data from the specified source',
+        help='Annotates a given product',
         arguments=[
             (['-vn', '--vendor_name'], {'help': 'vendor name', 'type': str, 'required': True}),
             (['-pn', '--product_name'], {'help': 'product name', 'type': str, 'required': True})
@@ -27,7 +27,7 @@ class Annotate(Controller):
         print(product_descriptor)
 
     @ex(
-        help='Gets data from the specified source',
+        help='Annotates a given diff for a vulnerability',
         arguments=[
             (['-vid', '--vulnerability_id'], {'help': 'vulnerability id', 'type': str, 'required': True})
         ]
@@ -36,3 +36,15 @@ class Annotate(Controller):
         diff_annotation = self.app.diff_annotation.annotate_diff(self.app.pargs.vulnerability_id)
 
         print(diff_annotation)
+
+
+    @ex(
+        help='Annotates the details of a given vulnerability',
+        arguments=[
+            (['-vid', '--vulnerability_id'], {'help': 'vulnerability id', 'type': str, 'required': True})
+        ]
+    )
+    def details(self):
+        vuln_descriptor = self.app.details_annotation.annotate_details(self.app.pargs.vulnerability_id)
+
+        print(vuln_descriptor)

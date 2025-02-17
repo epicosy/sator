@@ -5,6 +5,7 @@ from cement.core.config import ConfigHandler
 from sator.core.use_cases.analysis.diff import DiffAnalysis
 from sator.core.use_cases.annotation.diff import DiffAnnotator
 from sator.core.use_cases.resolution.diff import DiffResolution
+from sator.core.use_cases.annotation.details import DetailsAnnotation
 from sator.core.use_cases.annotation.product import ProductAnnotation
 from sator.core.use_cases.resolution.product import ProductResolution
 from sator.core.use_cases.extraction.details import DetailsExtraction
@@ -15,6 +16,8 @@ from sator.adapters.driven.persistence.json import JsonPersistence
 from sator.adapters.driven.gateways.oss.github import GithubGateway
 from sator.adapters.driven.repositories.product.cpe import CPEDictionary
 from sator.adapters.driven.repositories.vulnerability.nvd import NVDVulnerabilityRepository
+from sator.adapters.driven.classifiers.impact.regex_based import RegexBasedImpactClassifier
+from sator.adapters.driven.classifiers.weakness.keyword_based import KeywordBasedWeaknessClassifier
 from sator.adapters.driven.classifiers.product.keyword_based import KeywordBasedProductClassifier
 from sator.adapters.driven.classifiers.diff.rule_based import RuleBasedDiffClassifier
 from sator.adapters.driven.extractors.details.regex_based import RegexDetailsExtractor
@@ -102,3 +105,13 @@ def create_details_extractor(config: ConfigHandler) -> DetailsExtraction:
         storage_port=JsonPersistence(persistence['json']['path'])
     )
 
+
+def create_details_annotation(config: ConfigHandler) -> DetailsAnnotation:
+    persistence = config.get('sator', 'persistence')
+
+    # TODO: weakness_classifier and impact_classifier hardcoded as temporary solution
+    return DetailsAnnotation(
+        weakness_classifier=KeywordBasedWeaknessClassifier(),
+        impact_classifier=RegexBasedImpactClassifier(),
+        storage_port=JsonPersistence(persistence['json']['path'])
+    )
