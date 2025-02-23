@@ -15,16 +15,13 @@ class Annotate(Controller):
     @ex(
         help='Annotates a given product',
         arguments=[
-            (['-vn', '--vendor_name'], {'help': 'vendor name', 'type': str, 'required': True}),
-            (['-pn', '--product_name'], {'help': 'product name', 'type': str, 'required': True})
+            (['-pid', '--product_id'], {'help': 'product id (vendor/name)', 'type': str, 'required': True}),
         ]
     )
-    def product(self):
-        product_descriptor = self.app.product_annotation.annotate_product(
-            self.app.pargs.vendor_name, self.app.pargs.product_name
-        )
+    def product_attributes(self):
+        prod_descriptor = self.app.product_attributes_annotation.annotate_product_attributes(self.app.pargs.product_id)
 
-        print(product_descriptor)
+        print(prod_descriptor)
 
     @ex(
         help='Annotates a given diff for a vulnerability',
@@ -32,11 +29,12 @@ class Annotate(Controller):
             (['-vid', '--vulnerability_id'], {'help': 'vulnerability id', 'type': str, 'required': True})
         ]
     )
-    def diff(self):
-        diff_annotation = self.app.diff_annotation.annotate_diff(self.app.pargs.vulnerability_id)
+    def patch_attributes(self):
+        patch_descriptor = self.app.patch_attributes_annotation.annotate_patch_attributes(
+            self.app.pargs.vulnerability_id
+        )
 
-        print(diff_annotation)
-
+        print(patch_descriptor)
 
     @ex(
         help='Annotates the details of a given vulnerability',
@@ -44,7 +42,9 @@ class Annotate(Controller):
             (['-vid', '--vulnerability_id'], {'help': 'vulnerability id', 'type': str, 'required': True})
         ]
     )
-    def details(self):
-        vuln_descriptor = self.app.details_annotation.annotate_details(self.app.pargs.vulnerability_id)
+    def vulnerability_attributes(self):
+        vuln_descriptor = self.app.vulnerability_attributes_annotation.annotate_vulnerability_attributes(
+            self.app.pargs.vulnerability_id
+        )
 
         print(vuln_descriptor)

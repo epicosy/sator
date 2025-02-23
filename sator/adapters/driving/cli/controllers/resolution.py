@@ -18,7 +18,7 @@ class Resolve(Controller):
             (['-vid', '--vuln_id'], {'help': 'vulnerability id', 'type': str, 'required': True})
         ]
     )
-    def metadata(self):
+    def vulnerability_metadata(self):
         metadata = self.app.vulnerability_resolution.get_metadata(self.app.pargs.vuln_id)
         print(f'Metadata: {metadata}')
 
@@ -28,31 +28,41 @@ class Resolve(Controller):
             (['-vid', '--vuln_id'], {'help': 'vulnerability id', 'type': str, 'required': True})
         ]
     )
-    def description(self):
+    def vulnerability_description(self):
         description = self.app.vulnerability_resolution.get_description(self.app.pargs.vuln_id)
         print(f'Description: {description}')
 
     @ex(
-        help='Resolves the affected products for the specified vulnerability (already resolved)',
-        arguments=[
-            (['-vid', '--vuln_id'], {'help': 'vulnerability id', 'type': str, 'required': True}),
-            (['-l', '--locators'], {'help': 'resolve product locators', 'action': 'store_true'})
-        ]
-    )
-    def products(self):
-        if self.app.pargs.locators:
-            locators = self.app.product_resolution.get_locators(self.app.pargs.vuln_id)
-            print(locators)
-        else:
-            affected_products = self.app.vulnerability_resolution.get_affected_products(self.app.pargs.vuln_id)
-            print(affected_products)
-
-    @ex(
-        help='Resolves the specified vulnerability',
+        help='Resolves the product references for the specified vulnerability',
         arguments=[
             (['-vid', '--vuln_id'], {'help': 'vulnerability id', 'type': str, 'required': True})
         ]
     )
-    def diff(self):
-        diff = self.app.diff_resolution.get_diff(self.app.pargs.vuln_id)
-        print(diff)
+    def product_references(self):
+        product_references = self.app.product_references_resolution.search_product_references(self.app.pargs.vuln_id)
+
+        print(product_references)
+
+    @ex(
+        help='Resolves the references for the specified vulnerability',
+        arguments=[
+            (['-vid', '--vuln_id'], {'help': 'vulnerability id', 'type': str, 'required': True})
+        ]
+    )
+    def vulnerability_references(self):
+        vuln_references = self.app.vulnerability_references_resolution.search_vulnerability_references(
+            self.app.pargs.vuln_id
+        )
+
+        print(vuln_references)
+
+    @ex(
+        help='Resolves the references for the specified vulnerability',
+        arguments=[
+            (['-vid', '--vuln_id'], {'help': 'vulnerability id', 'type': str, 'required': True})
+        ]
+    )
+    def patch_references(self):
+        patch_references = self.app.patch_references_resolution.search_patch_references(self.app.pargs.vuln_id)
+
+        print(patch_references)

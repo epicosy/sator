@@ -4,7 +4,7 @@ import string
 from typing import List
 
 from sator.core.models.enums import ImpactType
-from sator.core.models.vulnerability.details import VulnerabilityDetails
+from sator.core.models.vulnerability.attributes import VulnerabilityAttributes
 from sator.core.ports.driven.classifiers.impact import ImpactClassifierPort
 
 # Create a translation table
@@ -58,7 +58,7 @@ def clean_text(text):
 
 
 class RegexBasedImpactClassifier(ImpactClassifierPort):
-    def classify_impact(self, vulnerability_details: VulnerabilityDetails) -> List[ImpactType]:
+    def classify_impact(self, vulnerability_details: VulnerabilityAttributes) -> List[ImpactType]:
         """
             Classify the impact of a vulnerability based on its details.
         """

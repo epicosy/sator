@@ -29,6 +29,15 @@ class ProductType(str, Enum):
     UNDEFINED = "Undefined"
 
 
+class LicenseType(str, Enum):
+    """
+        Enum for different types of licenses.
+    """
+    PROPRIETARY = "Proprietary"
+    OPEN_SOURCE = "Open Source"
+    UNDEFINED = "Undefined"
+
+
 class RootCauseType(str, Enum):
     """
         Enum for different types of root causes.
@@ -109,3 +118,11 @@ class WeaknessType(str, Enum):
     MEMORY_SAFETY = "Memory Safety"
     TYPE_SAFETY = "Type Safety"
     INPUT_SAFETY = "Input Safety"
+
+
+class PatchActionType(str, Enum):
+    CORRECTIVE = "Corrective"
+    ADAPTIVE = "Adaptive"
+    ENHANCEMENT = "Enhancement"
+
+    # TODO: add more patch action types

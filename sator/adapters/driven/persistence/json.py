@@ -1,32 +1,30 @@
 import json
 from pathlib import Path
 
-from sator.core.models.oss.diff import Diff
-from sator.core.models.bug import BugLocator
-from sator.core.models.oss.annotation import DiffAnnotation
-from sator.core.models.product import AffectedProducts
-from sator.core.models.product.locator import ProductLocator
-from sator.core.models.vulnerability.locator import VulnerabilityLocator
-from sator.core.models.vulnerability.details import VulnerabilityDetails
-from sator.core.models.vulnerability.metadata import VulnerabilityMetadata
-from sator.core.models.vulnerability.descriptor import VulnerabilityDescriptor
-from sator.core.models.vulnerability.description import VulnerabilityDescription
-from sator.core.models.product.descriptor import ProductDescriptor
+from sator.core.models.patch import PatchReferences, PatchAttributes, PatchDescriptor, PatchLocator
+from sator.core.models.product import ProductLocator, ProductAttributes, ProductDescriptor, ProductReferences
+
+from sator.core.models.vulnerability import (VulnerabilityLocator, VulnerabilityMetadata, VulnerabilityAttributes,
+                                             VulnerabilityReferences, VulnerabilityDescriptor, VulnerabilityDescription)
+
 from sator.core.ports.driven.persistence.storage import StoragePersistencePort, T
 
 
 PATHS_BY_ENTITY = {
-    ProductDescriptor: "descriptors",
-    VulnerabilityDetails: "vulnerability/details",
+    PatchLocator: "patch/locators",
+    PatchReferences: "patch/references",
+    PatchAttributes: "patch/attributes",
+    PatchDescriptor: "patch/descriptors",
+    ProductLocator: "product/locators",
+    ProductAttributes: "product/attributes",
+    ProductReferences: "product/references",
+    ProductDescriptor: "product/descriptors",
     VulnerabilityLocator: "vulnerability/locators",
     VulnerabilityMetadata: "vulnerability/metadata",
+    VulnerabilityAttributes: "vulnerability/attributes",
+    VulnerabilityReferences: "vulnerability/references",
     VulnerabilityDescriptor: "vulnerability/descriptors",
-    VulnerabilityDescription: "vulnerability/descriptions",
-    AffectedProducts: "affected_products",
-    ProductLocator: "product_locators",
-    Diff: "diffs",
-    DiffAnnotation: "diff_annotations",
-    BugLocator: "bug_locators",
+    VulnerabilityDescription: "vulnerability/descriptions"
 }
 
 

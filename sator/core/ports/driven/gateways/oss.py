@@ -11,6 +11,14 @@ class OSSGatewayPort(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def get_diff_message(self, repo_id: int, commit_sha: str) -> str | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_diff_url(self, repo_id: int, commit_sha: str) -> str | None:
+        raise NotImplementedError
+
+    @abstractmethod
     def get_ids_from_url(self, url: str) -> Tuple[int | None, int | None, str | None]:
         """
             Parse the URL and return the owner and repository ids.

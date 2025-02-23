@@ -4,9 +4,9 @@ from sator.core.models.oss.diff import Diff, Patch, DiffHunk, DiffLine
 
 class GithubDiffMapper:
     @staticmethod
-    def map_diff(sha: str, parent_commit_sha: str, diff_data) -> Diff:
+    def map_diff(repo_id: int, sha: str, parent_commit_sha: str, diff_data) -> Diff:
         patches = [GithubDiffMapper.map_patch(patch) for patch in diff_data.patches]
-        return Diff(commit_sha=sha, parent_commit_sha=parent_commit_sha, patches=patches)
+        return Diff(repository_id=repo_id, commit_sha=sha, parent_commit_sha=parent_commit_sha, patches=patches)
 
     @staticmethod
     def map_patch(patch_data) -> Patch:

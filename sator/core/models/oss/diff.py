@@ -56,6 +56,7 @@ class Patch(BaseModel):
 
 
 class Diff(BaseModel):
+    repository_id: int
     commit_sha: str
     parent_commit_sha: str
     patches: List[Patch]
