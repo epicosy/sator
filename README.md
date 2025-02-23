@@ -1,4 +1,6 @@
-# Sator: a vulnerability database API
+# Sator: Open Source Vulnerability Analysis
+
+An application for analysis of security vulnerabilities in open source software projects.
 
 ## Installation
 
@@ -8,91 +10,36 @@ $ pip install .
 $ ./setup.sh
 ```
 
-### Setting up database
+### Setup 
 
-```sh
-$ docker run --shm-size 128MB --name sator_db -e POSTGRES_PASSWORD=user123 -e POSTGRES_USER=user1 -e POSTGRES_DB=sator -d -p 5432:5432 postgres
-```
+Copy the `config/sator.yml` file and place under `~/.sator/config/sator.yml`. Edit the file to provide the relevant 
+paths for the repositories and the gateway login credentials.
 
 ### Usage
 
-Set up environment variables:
+Dissect the vulnerability data and extract relevant information for analysis by running the following commands:
+
+1. Resolve the vulnerability description and references and extract and analyze the attributes to identify the vulnerable product.
 ```sh
-$ export SQLALCHEMY_DATABASE_URI='postgresql://user:password@127.0.0.1:5432/db'
-$ export GITHUB_TOKENS='your_github_tokens,separated_by_commas'
+$ sator resolve vulnerability-description -vid <vulnerability_id>
+$ sator resolve vulnerability-references -vid <vulnerability_id>
+$ sator extract vulnerability-attributes -vid <vulnerability_id>
+$ sator annotate vulnerability-attributes -vid <vulnerability_id>
+$ sator analyze vulnerability-attributes -vid <vulnerability_id>
 ```
 
-Init database (optional, if not already done):
+2. Resolve the product references and extract and analyze the attributes to indentify its open source project.
 ```sh
-$ arepo -u $SQLALCHEMY_DATABASE_URI init
+$ sator resolve product-references -vid <vulnerability_id>
+$ sator extract product-attributes -vid <vulnerability_id>
+$ sator annotate product-attributes -pid <product_id>
+$ sator analyze product-attributes -vid <vulnerability_id>
 ```
 
-Populate database with CVEs from NVD:
+3. Resolve the patch references and extract and analyze the attributes to identify the patch for the root bug.
 ```sh
-$ sator source -n nvd collect -s 1999 -e 2024
-```
-
-Collect repo/commit data from GitHub:
-```sh
-$ sator source -n github collect
-```
-
-
-### Docker 
-```shell
- $ docker build --network="host" . -t sator
- $ docker run --name sator --network="host" sator
-```
-
-### Running server 
-
-```sh
-$ sator run [-h] [-p PORT] [-a ADDRESS]
-```
-
-## Development
-
-This project includes a number of helpers in the `Makefile` to streamline common development tasks.
-
-### Environment Setup
-
-The following demonstrates setting up and working with a development environment:
-
-```
-### create a virtualenv for development
-
-$ make virtualenv
-
-$ source env/bin/activate
-
-
-### run sator cli application
-
-$ sator --help
-
-
-### run pytest / coverage
-
-$ make test
-```
-
-
-### Releasing to PyPi
-
-Before releasing to PyPi, you must configure your login credentials:
-
-**~/.pypirc**:
-
-```
-[pypi]
-username = YOUR_USERNAME
-password = YOUR_PASSWORD
-```
-
-Then use the included helper function via the `Makefile`:
-
-```
-$ make dist
-
-$ make dist-upload
+$ sator resolve patch-references -vid <vulnerability_id>
+$ sator extract patch-attributes -vid <vulnerability_id>
+$ sator annotate patch-attributes -vid <vulnerability_id>
+$ sator analyze patch-attributes -vid <vulnerability_id>
 ```
