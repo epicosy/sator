@@ -19,6 +19,13 @@ class OSSGatewayPort(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def is_security_diff_message(self, message: str) -> bool | None:
+        # TODO: temporary method to check if a commit message is related to a security fix
+        #  should be moved to a more appropriate place
+
+        raise NotImplementedError
+
+    @abstractmethod
     def get_ids_from_url(self, url: str) -> Tuple[int | None, int | None, str | None]:
         """
             Parse the URL and return the owner and repository ids.

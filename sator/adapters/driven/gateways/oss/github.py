@@ -2,6 +2,9 @@ from rapidfuzz import fuzz
 from datetime import datetime
 from typing import Tuple, List
 
+from secomlint.message import Message
+from secomlint.section import Body, Header
+
 from gitlib.github.client import GitClient
 from gitlib.github.repository import GitRepo
 from gitlib.models.url.commit import GithubCommitUrl
@@ -15,6 +18,26 @@ from sator.adapters.driven.repositories.oss.mappers import GithubDiffMapper
 class GithubGateway(OSSGatewayPort):
     def __init__(self, login: str):
         self.github_client = GitClient(login)
+
+    def is_security_diff_message(self, message: str) -> bool | None:
+        commit_msg = [line.lower() for line in message.split('\n')]
+
+        if not commit_msg:
+            return None
+
+        message_obj = Message(commit_msg)
+        message_obj.get_sections()
+
+        keyword_categories = {"SECWORD": [], "ACTION": [], "FLAW": []}
+
+        for section in message_obj.sections:
+            if isinstance(section, (Header, Body)):
+                for entity in section.entities:
+                    entity_text, entity_type = entity
+                    if entity_type in keyword_categories:
+                        keyword_categories[entity_type].append(entity_text)
+
+        return all(keyword_categories[key] for key in keyword_categories)
 
     def search(self, repo_id: str, start_date: datetime, end_date: datetime, n: int) -> List[str]:
         repo = self.github_client.git_api.get_repo(repo_id)

@@ -19,7 +19,8 @@ class Analyze(Controller):
         ]
     )
     def patch_attributes(self):
-        patch_locator = self.app.patch_attributes_analysis.analyze_patch_attributes(self.app.pargs.vulnerability_id)
+        patch_attributes_analysis = self.app.analysis_builder.create_patch_attributes_analysis()
+        patch_locator = patch_attributes_analysis.analyze_patch_attributes(self.app.pargs.vulnerability_id)
 
         print(patch_locator)
 
@@ -30,7 +31,8 @@ class Analyze(Controller):
         ]
     )
     def vulnerability_attributes(self):
-        vuln_locator = self.app.vulnerability_attributes_analysis.analyze_vulnerability_attributes(
+        vulnerability_attributes_analysis = self.app.analysis_builder.create_vulnerability_attributes_analysis()
+        vuln_locator = vulnerability_attributes_analysis.analyze_vulnerability_attributes(
             self.app.pargs.vulnerability_id
         )
 
@@ -43,6 +45,7 @@ class Analyze(Controller):
         ]
     )
     def product_attributes(self):
-        product_locator = self.app.product_attributes_analysis.analyze_product_attributes(self.app.pargs.product_id)
+        product_attributes_analysis = self.app.analysis_builder.create_product_attributes_analysis()
+        product_locator = product_attributes_analysis.analyze_product_attributes(self.app.pargs.product_id)
 
         print(product_locator)

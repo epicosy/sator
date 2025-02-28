@@ -9,10 +9,10 @@ from sator.core.ports.driving.annotation.attributes.patch import PatchAttributes
 
 
 class PatchAttributesAnnotation(PatchAttributesAnnotationPort):
-    def __init__(self, diff_classifier_port: DiffClassifierPort, patch_action_classifier: PatchActionClassifierPort,
+    def __init__(self, diff_classifier: DiffClassifierPort, patch_action_classifier: PatchActionClassifierPort,
                  weakness_classifier: WeaknessClassifierPort, storage_port: StoragePersistencePort):
         self.weakness_classifier = weakness_classifier
-        self.diff_classifier = diff_classifier_port
+        self.diff_classifier = diff_classifier
         self.patch_action_classifier = patch_action_classifier
         self.storage_port = storage_port
 

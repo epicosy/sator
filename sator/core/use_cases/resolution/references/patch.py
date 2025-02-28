@@ -8,15 +8,12 @@ from sator.core.models.product.locator import ProductLocator
 from sator.core.models.vulnerability.locator import VulnerabilityLocator
 
 from sator.core.ports.driven.gateways.oss import OSSGatewayPort
-from sator.core.ports.driven.classifiers.diff import DiffClassifierPort
 from sator.core.ports.driven.persistence.storage import StoragePersistencePort
 from sator.core.ports.driving.resolution.references.patch import PatchReferencesResolutionPort
 
 
 class PatchReferencesResolution(PatchReferencesResolutionPort):
-    def __init__(self, diff_classifier: DiffClassifierPort, oss_gateway: OSSGatewayPort,
-                 storage_port: StoragePersistencePort):
-        self.diff_classifier = diff_classifier
+    def __init__(self, oss_gateway: OSSGatewayPort, storage_port: StoragePersistencePort):
         self.oss_gateway = oss_gateway
         self.storage_port = storage_port
 
@@ -73,7 +70,7 @@ class PatchReferencesResolution(PatchReferencesResolutionPort):
             diff_info = self.oss_gateway.get_diff_info(product_locator.repository_id, diff_id)
             print(diff_info['date'], diff_info['message'])
 
-            if self.diff_classifier.is_security_diff_message(diff_info['message']):
+            if self.oss_gateway.is_security_diff_message(diff_info['message']):
                 diff_url = self.oss_gateway.get_diff_url(product_locator.repository_id, diff_id)
 
                 if diff_url:

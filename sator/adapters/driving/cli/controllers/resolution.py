@@ -19,7 +19,8 @@ class Resolve(Controller):
         ]
     )
     def vulnerability_metadata(self):
-        metadata = self.app.vulnerability_resolution.get_metadata(self.app.pargs.vuln_id)
+        vulnerability_metadata_resolution = self.app.resolution_builder.create_vulnerability_metadata_resolution()
+        metadata = vulnerability_metadata_resolution.resolve_vulnerability_metadata(self.app.pargs.vuln_id)
         print(f'Metadata: {metadata}')
 
     @ex(
@@ -29,7 +30,8 @@ class Resolve(Controller):
         ]
     )
     def vulnerability_description(self):
-        description = self.app.vulnerability_resolution.get_description(self.app.pargs.vuln_id)
+        vulnerability_metadata_resolution = self.app.resolution_builder.create_vulnerability_metadata_resolution()
+        description = vulnerability_metadata_resolution.resolve_vulnerability_description(self.app.pargs.vuln_id)
         print(f'Description: {description}')
 
     @ex(
@@ -39,7 +41,8 @@ class Resolve(Controller):
         ]
     )
     def product_references(self):
-        product_references = self.app.product_references_resolution.search_product_references(self.app.pargs.vuln_id)
+        product_references_resolution = self.app.resolution_builder.create_product_references_resolution()
+        product_references = product_references_resolution.search_product_references(self.app.pargs.vuln_id)
 
         print(product_references)
 
@@ -50,9 +53,8 @@ class Resolve(Controller):
         ]
     )
     def vulnerability_references(self):
-        vuln_references = self.app.vulnerability_references_resolution.search_vulnerability_references(
-            self.app.pargs.vuln_id
-        )
+        vulnerability_references_resolution = self.app.resolution_builder.create_vulnerability_references_resolution()
+        vuln_references = vulnerability_references_resolution.search_vulnerability_references(self.app.pargs.vuln_id)
 
         print(vuln_references)
 
@@ -63,6 +65,7 @@ class Resolve(Controller):
         ]
     )
     def patch_references(self):
-        patch_references = self.app.patch_references_resolution.search_patch_references(self.app.pargs.vuln_id)
+        patch_references_resolution = self.app.resolution_builder.create_patch_references_resolution()
+        patch_references = patch_references_resolution.search_patch_references(self.app.pargs.vuln_id)
 
         print(patch_references)

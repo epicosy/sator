@@ -1,0 +1,2 @@
+from sator.core.use_cases.resolution.metadata.product import ProductMetadataResolution
+from sator.core.use_cases.resolution.metadata.vulnerability import VulnerabilityMetadataResolution

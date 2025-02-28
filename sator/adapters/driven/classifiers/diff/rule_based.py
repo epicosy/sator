@@ -1,8 +1,5 @@
 import code_diff as cd
 
-from secomlint.message import Message
-from secomlint.section import Body, Header
-
 from code_diff.gumtree import EditScript, Insert, Delete
 
 from pathlib import Path
@@ -90,42 +87,3 @@ class RuleBasedDiffClassifier(DiffClassifierPort):
 
         return DiffDescriptor(patches=patches) if patches else None
 
-    def is_security_diff_message(self, message: str) -> bool | None:
-        commit_msg = [line.lower() for line in message.split('\n')]
-
-        if commit_msg:
-            message = Message(commit_msg)
-            message.get_sections()
-            header_section = [section for section in message.sections if type(section) == Header]
-            body_section = [section for section in message.sections if type(section) == Body]
-            flaw_keywords = []
-            action_keywords = []
-            sec_keywords = []
-
-            if header_section:
-                for entity in header_section[0].entities:
-                    entity_list = list(entity)
-                    print(entity_list)
-
-                    if entity_list[1] == 'SECWORD':
-                        sec_keywords.append(entity_list[0])
-                    if entity_list[1] == 'ACTION':
-                        action_keywords.append(entity_list[0])
-                    if entity_list[1] == 'FLAW':
-                        flaw_keywords.append(entity_list[0])
-
-            if body_section:
-                for entity in body_section[0].entities:
-                    entity_list = list(entity)
-                    print(entity_list)
-
-                    if entity_list[1] == 'SECWORD':
-                        sec_keywords.append(entity_list[0])
-                    if entity_list[1] == 'ACTION':
-                        action_keywords.append(entity_list[0])
-                    if entity_list[1] == 'FLAW':
-                        flaw_keywords.append(entity_list[0])
-
-            return len(flaw_keywords) > 0 and len(action_keywords) > 0 and len(sec_keywords) > 0
-
-        return None
