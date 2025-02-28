@@ -11,7 +11,7 @@ class OSSGatewayPort(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_diff_message(self, repo_id: int, commit_sha: str) -> str | None:
+    def get_diff_info(self, repo_id: int, commit_sha: str) -> dict | None:
         raise NotImplementedError
 
     @abstractmethod
@@ -40,5 +40,19 @@ class OSSGatewayPort(ABC):
             :param n: The number of commits to return.
 
             :return: A list of commit hashes.
+        """
+        raise NotImplementedError
+
+    def search_repo(self, owner_name: str, repository_name: str, n_org: int = 10, n_repos: int = 10) \
+            -> Tuple[int | None, int | None]:
+        """
+            Search for a repository.
+
+            :param owner_name: The owner name.
+            :param repository_name: The repository name.
+            :param n_org: The number of organizations to go through before giving up.
+            :param n_repos: The number of repositories to go through before giving up.
+
+            :return: A tuple containing the owner id and repository id.
         """
         raise NotImplementedError

@@ -57,18 +57,23 @@ class PatchReferencesResolution(PatchReferencesResolutionPort):
                 diff_ids.append(diff_id)
 
         if not diff_ids:
-            # TODO: should include versions and fetch all commits between the reported and published date
-            diff_ids = self.oss_gateway.search(
-                repo_id=product_locator.repository_id, start_date=vulnerability_metadata.reported_date,
-                end_date=vulnerability_metadata.published_date, n=10
-            )
+            if vulnerability_metadata:
+                # TODO: should include versions and fetch all commits between the reported and published date
+                diff_ids = self.oss_gateway.search(
+                    repo_id=product_locator.repository_id, start_date=vulnerability_metadata.reported_date,
+                    end_date=vulnerability_metadata.published_date, n=10
+                )
+
+        if not patch_references:
+            patch_references = PatchReferences()
 
         patch_references.diffs = []
         # TODO: This part should probably be moved into a separate port
         for diff_id in diff_ids:
-            diff_message = self.oss_gateway.get_diff_message(product_locator.repository_id, diff_id)
+            diff_info = self.oss_gateway.get_diff_info(product_locator.repository_id, diff_id)
+            print(diff_info['date'], diff_info['message'])
 
-            if self.diff_classifier.is_security_diff_message(diff_message):
+            if self.diff_classifier.is_security_diff_message(diff_info['message']):
                 diff_url = self.oss_gateway.get_diff_url(product_locator.repository_id, diff_id)
 
                 if diff_url:
@@ -89,7 +94,7 @@ class PatchReferencesResolution(PatchReferencesResolutionPort):
                 elif 'openwall' in patch.host:
                     patch_references.messages.append(patch)
                 else:
-                    patch_references.others.append(patch)
+                    patch_references.other.append(patch)
             return patch_references
 
         return None

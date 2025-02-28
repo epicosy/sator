@@ -30,9 +30,17 @@ class ProductAttributesAnalysis(ProductAttributesAnalysisPort):
                 product_locator = locators.pop()
                 self.storage_port.save(product_locator, product_id)
                 return product_locator
-        else:
-            # when there are no references, we should search for the product through the oss_gateway
-            pass
+
+        # attempt to search for the product in the OSS if it was not found locally
+        owner_id, repo_id = self.oss_gateway.search_repo(
+            product_attributes.product.vendor, product_attributes.product.name, 10, 5
+        )
+
+        if owner_id and repo_id:
+            product_ownership = ProductOwnership(product=product_attributes.product, owner_id=owner_id)
+            product_locator = ProductLocator(product_ownership=product_ownership, repository_id=repo_id)
+            self.storage_port.save(product_locator, product_id)
+            return product_locator
 
         return None
 
