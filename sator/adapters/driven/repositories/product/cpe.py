@@ -1,3 +1,4 @@
+import re
 from typing import List
 from rapidfuzz import fuzz
 from pydantic import AnyUrl
@@ -5,10 +6,10 @@ from pydantic import AnyUrl
 from cpelib.types.definitions import CPEPart
 from cpelib.core.loaders.json import JSONLoader
 
-from sator.core.models.product import Product, ProductReferences
-from sator.core.models.enums import ProductPart, ProductType
+from sator_core.models.product import Product, ProductReferences
+from sator_core.models.enums import ProductPart, ProductType
 
-from sator.core.ports.driven.repositories.product import ProductRepositoryPort
+from sator_core.ports.driven.repositories.product import ProductRepositoryPort
 
 
 CPE_PART_TO_PRODUCT_PART = {
@@ -18,6 +19,7 @@ CPE_PART_TO_PRODUCT_PART = {
 }
 
 WILDCARDS = ["*", "-", ""]
+VERSIONS_MATCH = r"v?\d+\.\d+(?:\.\d+)?(?:-\d+)?"
 
 
 class CPEDictionary(ProductRepositoryPort):
@@ -40,6 +42,15 @@ class CPEDictionary(ProductRepositoryPort):
         return None
 
     def search(self, vendor_name: str, product_name: str, n: int = 10) -> List[Product]:
+        if not vendor_name and not product_name:
+            return []
+
+        if vendor_name:
+            vendor_name = vendor_name.lower()
+
+        if product_name:
+            product_name = product_name.lower()
+
         cpe_dict = self.loader.load(vendor_name=vendor_name, product_name=product_name)
 
         if len(cpe_dict.vendors) > 1:
@@ -76,13 +87,18 @@ class CPEDictionary(ProductRepositoryPort):
         cpe_dict = self.loader.load(vendor_name=product.vendor, product_name=product.name)
 
         # TODO: find the best way to parse the version
-        clean_version = version.replace("before", "").replace("after", "").strip()
+        match = re.search(VERSIONS_MATCH, version)
+
+        if match:
+            match_version = match.group(0)
+        else:
+            match_version = version.replace("before", "").replace("after", "").strip()
 
         if len(cpe_dict) > 0:
             # TODO: maybe should keep track of the closest version, and return it if it is close enough
             for cpe_item in cpe_dict.items.values():
-                if cpe_item.cpe.version == clean_version:
-                    return clean_version
+                if cpe_item.cpe.version == match_version:
+                    return match_version
 
         return None
 

@@ -2,8 +2,8 @@ from typing import List
 
 from gitlib.loader import DiffLoader
 
-from sator.core.models.oss.diff import Diff
-from sator.core.ports.driven.repositories.oss import OSSRepositoryPort
+from sator_core.models.oss.diff import Diff
+from sator_core.ports.driven.repositories.oss import OSSRepositoryPort
 from sator.adapters.driven.repositories.oss.mappers import GithubDiffMapper
 
 

@@ -1,7 +1,7 @@
 
-from sator.core.ports.driven.classifiers.weakness import WeaknessClassifierPort
+from sator_core.ports.driven.classifiers.weakness import WeaknessClassifierPort
 
-from sator.core.models.enums import WeaknessType
+from sator_core.models.enums import WeaknessType
 
 
 # TODO: Improve the list of keywords for each weakness type based on the CWE documentation.

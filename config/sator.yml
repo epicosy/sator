@@ -1,4 +1,4 @@
-### vulnerability database Configuration Settings
+### Vulnerability Analysis Application Configuration Settings
 ---
 
 sator:
@@ -22,8 +22,28 @@ sator:
 ### Threading
   local_threads: 8
 
+  repositories:
+    nvd:
+        path: '~/.nvdutils/nvd-json-data-feeds'
+    cpe:
+        path: '~/.cpelib/data'
+  gateways:
+    github:
+        login: '<github_token>'
+  persistence:
+    json:
+        path: '~/.sator/data'
+
 ### The output handler label
 # output_handler: jinja2
+
+flask:
+  SQLALCHEMY_TRACK_MODIFICATIONS: false
+  CSRF_ENABLED: True
+  SECRET_KEY: "SECRET_KEY"
+  SQLALCHEMY_DATABASE_URI: postgresql://postgres.snqzhpknurvuysrabgig:pmbcgAS4M1qzZfy1@aws-0-us-west-1.pooler.supabase.com:5432/sator
+  RUN_PORT: 3001
+  ENV: development
 
 
 log.colorlog:

@@ -1,8 +1,8 @@
 from typing import Tuple
 
-from sator.core.models.enums import DiffChangeType, DiffContentType
-from sator.core.models.patch import PatchAttributes, PatchDescriptor
-from sator.core.ports.driven.analyzers.patch import PatchAttributesAnalyzerPort
+from sator_core.models.enums import DiffChangeType, DiffContentType
+from sator_core.models.patch import PatchAttributes, PatchDescriptor
+from sator_core.ports.driven.analyzers.patch import PatchAttributesAnalyzerPort
 
 
 CHANGE_TYPE_SCORE = {

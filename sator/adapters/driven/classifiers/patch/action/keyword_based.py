@@ -1,6 +1,6 @@
 
-from sator.core.models.enums import PatchActionType
-from sator.core.ports.driven.classifiers.patch_action import PatchActionClassifierPort
+from sator_core.models.enums import PatchActionType
+from sator_core.ports.driven.classifiers.patch_action import PatchActionClassifierPort
 
 PATCH_ACTION_KEYWORD_MAPPING = {
     PatchActionType.CORRECTIVE: ("fix", "patch", "mitigate", "protect"),

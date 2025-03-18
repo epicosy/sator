@@ -19,7 +19,8 @@ class Annotate(Controller):
         ]
     )
     def product_attributes(self):
-        prod_descriptor = self.app.product_attributes_annotation.annotate_product_attributes(self.app.pargs.product_id)
+        product_attributes_annotation = self.app.annotation_builder.create_product_attributes_annotation()
+        prod_descriptor = product_attributes_annotation.annotate_product_attributes(self.app.pargs.product_id)
 
         print(prod_descriptor)
 
@@ -30,9 +31,8 @@ class Annotate(Controller):
         ]
     )
     def patch_attributes(self):
-        patch_descriptor = self.app.patch_attributes_annotation.annotate_patch_attributes(
-            self.app.pargs.vulnerability_id
-        )
+        patch_attributes_annotation = self.app.annotation_builder.create_patch_attributes_annotation()
+        patch_descriptor = patch_attributes_annotation.annotate_patch_attributes(self.app.pargs.vulnerability_id)
 
         print(patch_descriptor)
 
@@ -43,7 +43,8 @@ class Annotate(Controller):
         ]
     )
     def vulnerability_attributes(self):
-        vuln_descriptor = self.app.vulnerability_attributes_annotation.annotate_vulnerability_attributes(
+        vulnerability_attributes_annotation = self.app.annotation_builder.create_vulnerability_attributes_annotation()
+        vuln_descriptor = vulnerability_attributes_annotation.annotate_vulnerability_attributes(
             self.app.pargs.vulnerability_id
         )
 

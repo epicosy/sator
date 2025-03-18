@@ -1,6 +1,6 @@
-from sator.core.models.product import Product
-from sator.core.models.enums import ProductType, ProductPart
-from sator.core.ports.driven.classifiers.product import ProductClassifierPort
+from sator_core.models.product import Product
+from sator_core.models.enums import ProductType, ProductPart, LicenseType
+from sator_core.ports.driven.classifiers.product import ProductClassifierPort
 
 
 # cms stands for Content Management System;
@@ -37,11 +37,11 @@ PRODUCT_TYPE_BY_KEYWORDS = {
 
 
 class KeywordBasedProductClassifier(ProductClassifierPort):
-    def classify_product_by_part(self, product: Product) -> ProductPart:
+    def classify_product_part(self, product: Product) -> ProductPart:
         # TODO: Implement this method
         return ProductPart.UNDEFINED
 
-    def classify_product_by_type(self, product_name: str, part: ProductPart) -> ProductType:
+    def classify_product_type(self, product_name: str, part: ProductPart) -> ProductType:
         """
             Classify the product by type based on keywords in the product name. Product must have a part.
 
@@ -69,3 +69,7 @@ class KeywordBasedProductClassifier(ProductClassifierPort):
                     return product_type
 
         return ProductType.UNDEFINED
+
+    def classify_license_type(self, product: Product) -> LicenseType:
+        # TODO: Implement this method
+        return LicenseType.UNDEFINED

@@ -1,20 +1,43 @@
-from pydantic import AnyUrl
+from rapidfuzz import fuzz
 from datetime import datetime
 from typing import Tuple, List
+
+from secomlint.message import Message
+from secomlint.section import Body, Header
 
 from gitlib.github.client import GitClient
 from gitlib.github.repository import GitRepo
 from gitlib.models.url.commit import GithubCommitUrl
 from gitlib.parsers.url.base import GithubUrlParser
 
-from sator.core.models.oss.diff import Diff
-from sator.core.ports.driven.gateways.oss import OSSGatewayPort
+from sator_core.models.oss.diff import Diff
+from sator_core.ports.driven.gateways.oss import OSSGatewayPort
 from sator.adapters.driven.repositories.oss.mappers import GithubDiffMapper
 
 
 class GithubGateway(OSSGatewayPort):
     def __init__(self, login: str):
         self.github_client = GitClient(login)
+
+    def is_security_diff_message(self, message: str) -> bool | None:
+        commit_msg = [line.lower() for line in message.split('\n')]
+
+        if not commit_msg:
+            return None
+
+        message_obj = Message(commit_msg)
+        message_obj.get_sections()
+
+        keyword_categories = {"SECWORD": [], "ACTION": [], "FLAW": []}
+
+        for section in message_obj.sections:
+            if isinstance(section, (Header, Body)):
+                for entity in section.entities:
+                    entity_text, entity_type = entity
+                    if entity_type in keyword_categories:
+                        keyword_categories[entity_type].append(entity_text)
+
+        return all(keyword_categories[key] for key in keyword_categories)
 
     def search(self, repo_id: str, start_date: datetime, end_date: datetime, n: int) -> List[str]:
         repo = self.github_client.git_api.get_repo(repo_id)
@@ -32,14 +55,59 @@ class GithubGateway(OSSGatewayPort):
 
         return []
 
-    def get_diff_message(self, repo_id: int, commit_sha: str) -> str | None:
+    def search_repo(self, owner_name: str, repository_name: str, n_org: int = 10, n_repos: int = 10) \
+            -> Tuple[int | None, int | None]:
+        # TODO: elaborate the search to return the most relevant repository
+        repo = self.github_client.get_repo(owner_name, repository_name)
+
+        if repo:
+            return repo.owner.id, repo.id
+
+        orgs = self.github_client.git_api.search_users(owner_name)
+        org_count = 0
+
+        for org in orgs:
+            if org_count >= n_org:
+                print(f"Could not find {repository_name} in fetched organizations.")
+                break
+
+            if org.public_repos > 0:
+                repo_count = 0
+                print(f"Searching for {repository_name} in {org.login} organization.")
+                repo = self.github_client.get_repo(org.login, repository_name)
+
+                if repo:
+                    return org.id, repo.id
+                else:
+                    for repo in org.get_repos():
+                        if repo_count >= n_repos:
+                            print(f"Could not find {repository_name} in fetched repositories.")
+                            break
+
+                        similarity = fuzz.ratio(repository_name, repo.name)
+                        print(f"Comparing {repository_name} with {repo.name} - Similarity: {round(similarity, 3)}%")
+
+                        if similarity > 85:
+                            # This should be close enough
+                            return org.id, repo.id
+
+                        repo_count += 1
+
+                org_count += 1
+
+        return None, None
+
+    def get_diff_info(self, repo_id: int, commit_sha: str) -> dict | None:
         repo = self.github_client.git_api.get_repo(repo_id)
         git_repo = GitRepo(repo)
 
         commit = git_repo.get_commit(commit_sha)
 
         if commit:
-            return commit.message
+            return {
+                'message': commit.message,
+                'date': commit.date
+            }
 
         return None
 

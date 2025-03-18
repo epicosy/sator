@@ -2,17 +2,14 @@ from cement import App, TestApp
 from cement.core.exc import CaughtSignal
 from .exc import SatorError
 from .controllers.base import Base
+from .controllers.process import Process
 from .controllers.analysis import Analyze
 from .controllers.extraction import Extract
 from .controllers.resolution import Resolve
 from .controllers.annotation import Annotate
-from .bootstrap import (create_product_references_resolution, create_patch_references_resolution,
-                        create_vulnerability_references_resolution, create_product_attributes_extraction,
-                        create_vulnerability_attributes_extraction, create_patch_attributes_extraction,
-                        create_product_attributes_annotation, create_patch_attributes_annotation,
-                        create_vulnerability_attributes_annotation, create_patch_attributes_analysis,
-                        create_product_attributes_analysis, create_vulnerability_attributes_analysis,
-                        create_vulnerability_resolution)
+from sator_app.services.processing.vulnerability import VulnerabilityProcessingService
+from .bootstrap import (create_resolution_builder, create_extraction_builder, create_annotation_builder,
+                        create_analysis_builder)
 
 
 class Sator(App):
@@ -47,7 +44,7 @@ class Sator(App):
 
         # register handlers
         handlers = [
-            Base, Resolve, Annotate, Analyze, Extract
+            Base, Resolve, Annotate, Analyze, Extract, Process
         ]
 
     def get_config(self, key: str):
@@ -67,25 +64,17 @@ class SatorTest(TestApp, Sator):
 
 def main():
     with Sator() as app:
-        # TODO: find a way to do this in a more elegant way, it is getting out of hand
-        # TODO: find a way to pass these to the Resolve controller
-        app.vulnerability_resolution = create_vulnerability_resolution(app.config)
-
-        app.patch_references_resolution = create_patch_references_resolution(app.config)
-        app.product_references_resolution = create_product_references_resolution(app.config)
-        app.vulnerability_references_resolution = create_vulnerability_references_resolution(app.config)
-
-        app.product_attributes_annotation = create_product_attributes_annotation(app.config)
-        app.patch_attributes_annotation = create_patch_attributes_annotation(app.config)
-        app.vulnerability_attributes_annotation = create_vulnerability_attributes_annotation(app.config)
-
-        app.patch_attributes_extraction = create_patch_attributes_extraction(app.config)
-        app.product_attributes_extraction = create_product_attributes_extraction(app.config)
-        app.vulnerability_attributes_extraction = create_vulnerability_attributes_extraction(app.config)
-
-        app.patch_attributes_analysis = create_patch_attributes_analysis(app.config)
-        app.product_attributes_analysis = create_product_attributes_analysis(app.config)
-        app.vulnerability_attributes_analysis = create_vulnerability_attributes_analysis(app.config)
+        app.resolution_builder = create_resolution_builder(app.config)
+        app.extraction_builder = create_extraction_builder(app.config)
+        app.annotation_builder = create_annotation_builder(app.config)
+        app.analysis_builder = create_analysis_builder(app.config)
+        app.vulnerability_processing = VulnerabilityProcessingService(
+            app.annotation_builder.create_vulnerability_attributes_annotation(),
+            app.extraction_builder.create_vulnerability_attributes_extraction(),
+            app.analysis_builder.create_vulnerability_attributes_analysis(),
+            app.resolution_builder.create_vulnerability_metadata_resolution(),
+            app.resolution_builder.create_vulnerability_references_resolution()
+        )
 
         try:
             app.run()

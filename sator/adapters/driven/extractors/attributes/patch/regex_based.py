@@ -1,9 +1,9 @@
 from secomlint.message import Message
 from secomlint.section import Body, Header
 
-from sator.core.models.oss.diff import Diff
-from sator.core.models.patch.attributes import PatchAttributes
-from sator.core.ports.driven.extraction.attributes.patch import PatchAttributesExtractorPort
+from sator_core.models.oss.diff import Diff
+from sator_core.models.patch.attributes import PatchAttributes
+from sator_core.ports.driven.extraction.attributes.patch import PatchAttributesExtractorPort
 
 
 class RegexPatchAttributesExtractor(PatchAttributesExtractorPort):

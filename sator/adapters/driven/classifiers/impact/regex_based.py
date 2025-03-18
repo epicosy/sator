@@ -3,9 +3,9 @@ import string
 
 from typing import List
 
-from sator.core.models.enums import ImpactType
-from sator.core.models.vulnerability.attributes import VulnerabilityAttributes
-from sator.core.ports.driven.classifiers.impact import ImpactClassifierPort
+from sator_core.models.enums import ImpactType
+from sator_core.models.vulnerability.attributes import VulnerabilityAttributes
+from sator_core.ports.driven.classifiers.impact import ImpactClassifierPort
 
 # Create a translation table
 translator = str.maketrans('', '', string.punctuation)

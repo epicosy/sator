@@ -1,3 +1,0 @@
-from sator.core.ports.driving.extraction.attributes.patch import PatchAttributesExtractionPort
-from sator.core.ports.driving.extraction.attributes.product import ProductAttributesExtractionPort
-from sator.core.ports.driving.extraction.attributes.vulnerability import VulnerabilityAttributesExtractionPort

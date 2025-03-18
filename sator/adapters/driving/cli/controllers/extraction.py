@@ -19,9 +19,8 @@ class Extract(Controller):
         ]
     )
     def vulnerability_attributes(self):
-        vul_attrs = self.app.vulnerability_attributes_extraction.extract_vulnerability_attributes(
-            self.app.pargs.vulnerability_id
-        )
+        vulnerability_attributes_extraction = self.app.extraction_builder.create_vulnerability_attributes_extraction()
+        vul_attrs = vulnerability_attributes_extraction.extract_vulnerability_attributes(self.app.pargs.vulnerability_id)
 
         print(vul_attrs)
 
@@ -32,9 +31,8 @@ class Extract(Controller):
         ]
     )
     def product_attributes(self):
-        prod_attrs = self.app.product_attributes_extraction.extract_product_attributes(
-            self.app.pargs.vulnerability_id
-        )
+        product_attributes_extraction = self.app.extraction_builder.create_product_attributes_extraction()
+        prod_attrs = product_attributes_extraction.extract_product_attributes(self.app.pargs.vulnerability_id)
 
         print(prod_attrs)
 
@@ -45,6 +43,7 @@ class Extract(Controller):
         ]
     )
     def patch_attributes(self):
-        patch_attrs = self.app.patch_attributes_extraction.extract_patch_attributes(self.app.pargs.vulnerability_id)
+        patch_attributes_extraction = self.app.extraction_builder.create_patch_attributes_extraction()
+        patch_attrs = patch_attributes_extraction.extract_patch_attributes(self.app.pargs.vulnerability_id)
 
         print(patch_attrs)

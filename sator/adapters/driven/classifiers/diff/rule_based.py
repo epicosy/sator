@@ -1,14 +1,11 @@
 import code_diff as cd
 
-from secomlint.message import Message
-from secomlint.section import Metadata, Body
-
 from code_diff.gumtree import EditScript, Insert, Delete
 
 from pathlib import Path
-from sator.core.models.enums import DiffChangeType, DiffContentType
-from sator.core.models.patch.descriptor import DiffHunkDescriptor, DiffPatchDescriptor, DiffDescriptor
-from sator.core.ports.driven.classifiers.diff import DiffClassifierPort
+from sator_core.models.enums import DiffChangeType, DiffContentType
+from sator_core.models.patch.descriptor import DiffHunkDescriptor, DiffPatchDescriptor, DiffDescriptor
+from sator_core.ports.driven.classifiers.diff import DiffClassifierPort
 
 LANG_MAP = {
     ".c": "c",
@@ -90,22 +87,3 @@ class RuleBasedDiffClassifier(DiffClassifierPort):
 
         return DiffDescriptor(patches=patches) if patches else None
 
-    def is_security_diff_message(self, message: str) -> bool | None:
-        commit_msg = [line.lower() for line in message.split('\n')]
-
-        if commit_msg:
-            message = Message(commit_msg)
-            message.get_sections()
-            body_section = [section for section in message.sections if type(section) == Body]
-
-            secwords = []
-
-            for entity in body_section[0].entities:
-                entity_list = list(entity)
-
-                if entity_list[1] == 'SECWORD':
-                    secwords.append(entity_list[0])
-
-            return len(secwords) > 0
-
-        return None
