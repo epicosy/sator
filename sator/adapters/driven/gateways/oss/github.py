@@ -10,8 +10,8 @@ from gitlib.github.repository import GitRepo
 from gitlib.models.url.commit import GithubCommitUrl
 from gitlib.parsers.url.base import GithubUrlParser
 
-from sator.core.models.oss.diff import Diff
-from sator.core.ports.driven.gateways.oss import OSSGatewayPort
+from sator_core.models.oss.diff import Diff
+from sator_core.ports.driven.gateways.oss import OSSGatewayPort
 from sator.adapters.driven.repositories.oss.mappers import GithubDiffMapper
 
 

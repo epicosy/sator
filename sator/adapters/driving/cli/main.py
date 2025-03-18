@@ -7,7 +7,7 @@ from .controllers.analysis import Analyze
 from .controllers.extraction import Extract
 from .controllers.resolution import Resolve
 from .controllers.annotation import Annotate
-from sator.app.services.processing.vulnerability import VulnerabilityProcessingService
+from sator_app.services.processing.vulnerability import VulnerabilityProcessingService
 from .bootstrap import (create_resolution_builder, create_extraction_builder, create_annotation_builder,
                         create_analysis_builder)
 

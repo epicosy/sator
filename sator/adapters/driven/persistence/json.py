@@ -1,13 +1,13 @@
 import json
 from pathlib import Path
 
-from sator.core.models.patch import PatchReferences, PatchAttributes, PatchDescriptor, PatchLocator
-from sator.core.models.product import ProductLocator, ProductAttributes, ProductDescriptor, ProductReferences
+from sator_core.models.patch import PatchReferences, PatchAttributes, PatchDescriptor, PatchLocator
+from sator_core.models.product import ProductLocator, ProductAttributes, ProductDescriptor, ProductReferences
 
-from sator.core.models.vulnerability import (VulnerabilityLocator, VulnerabilityMetadata, VulnerabilityAttributes,
+from sator_core.models.vulnerability import (VulnerabilityLocator, VulnerabilityMetadata, VulnerabilityAttributes,
                                              VulnerabilityReferences, VulnerabilityDescriptor, VulnerabilityDescription)
 
-from sator.core.ports.driven.persistence.storage import StoragePersistencePort, T
+from sator_core.ports.driven.persistence.storage import StoragePersistencePort, T
 
 
 PATHS_BY_ENTITY = {

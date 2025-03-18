@@ -3,9 +3,9 @@ import code_diff as cd
 from code_diff.gumtree import EditScript, Insert, Delete
 
 from pathlib import Path
-from sator.core.models.enums import DiffChangeType, DiffContentType
-from sator.core.models.patch.descriptor import DiffHunkDescriptor, DiffPatchDescriptor, DiffDescriptor
-from sator.core.ports.driven.classifiers.diff import DiffClassifierPort
+from sator_core.models.enums import DiffChangeType, DiffContentType
+from sator_core.models.patch.descriptor import DiffHunkDescriptor, DiffPatchDescriptor, DiffDescriptor
+from sator_core.ports.driven.classifiers.diff import DiffClassifierPort
 
 LANG_MAP = {
     ".c": "c",

@@ -6,10 +6,10 @@ from pydantic import AnyUrl
 from cpelib.types.definitions import CPEPart
 from cpelib.core.loaders.json import JSONLoader
 
-from sator.core.models.product import Product, ProductReferences
-from sator.core.models.enums import ProductPart, ProductType
+from sator_core.models.product import Product, ProductReferences
+from sator_core.models.enums import ProductPart, ProductType
 
-from sator.core.ports.driven.repositories.product import ProductRepositoryPort
+from sator_core.ports.driven.repositories.product import ProductRepositoryPort
 
 
 CPE_PART_TO_PRODUCT_PART = {

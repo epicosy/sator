@@ -1,7 +1,7 @@
 
 from cement.core.config import ConfigHandler
 
-from sator.app.bootstrap import ResolutionBuilder, ExtractionBuilder, AnnotationBuilder, AnalysisBuilder
+from sator_app.bootstrap import ResolutionBuilder, ExtractionBuilder, AnnotationBuilder, AnalysisBuilder
 
 from sator.adapters.driven.persistence.json import JsonPersistence
 

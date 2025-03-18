@@ -1,6 +1,6 @@
-from sator.core.models.product import Product
-from sator.core.models.enums import ProductType, ProductPart, LicenseType
-from sator.core.ports.driven.classifiers.product import ProductClassifierPort
+from sator_core.models.product import Product
+from sator_core.models.enums import ProductType, ProductPart, LicenseType
+from sator_core.ports.driven.classifiers.product import ProductClassifierPort
 
 
 # cms stands for Content Management System;
