@@ -78,11 +78,15 @@ def create_annotation_builder(config: ConfigHandler) -> AnnotationBuilder:
 
 
 def create_analysis_builder(config: ConfigHandler) -> AnalysisBuilder:
+    repositories = config.get('sator', 'repositories')
     persistence = config.get('sator', 'persistence')
     gateways = config.get('sator', 'gateways')
 
     # TODO: ports hardcoded as temporary solution
     return AnalysisBuilder(
+        prod_repos=[
+            PROD_REPOS_MAPPING[name](**values) for name, values in repositories.items() if name in PROD_REPOS_MAPPING
+        ],
         diff_classifier=RuleBasedDiffClassifier(),
         patch_attrs_analyzer=ScorePatchAttributesAnalyzer(),
         storage_port=JsonPersistence(persistence['json']['path']),
