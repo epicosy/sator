@@ -25,18 +25,6 @@ class Extract(Controller):
         print(vul_attrs)
 
     @ex(
-        help='Extracts attributes from the description of the specified product.',
-        arguments=[
-            (['-vid', '--vulnerability_id'], {'help': 'vulnerability id', 'type': str, 'required': True})
-        ]
-    )
-    def product_attributes(self):
-        product_attributes_extraction = self.app.extraction_builder.create_product_attributes_extraction()
-        prod_attrs = product_attributes_extraction.extract_product_attributes(self.app.pargs.vulnerability_id)
-
-        print(prod_attrs)
-
-    @ex(
         help='Extracts attributes from the patch references of the specified vulnerability.',
         arguments=[
             (['-vid', '--vulnerability_id'], {'help': 'vulnerability id', 'type': str, 'required': True})

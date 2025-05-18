@@ -39,12 +39,17 @@ CONFIG_STOP_WORDS = [
     "component",
     "the",
     "commit",
-    "earlier"
+    "earlier",
+    "<=",
+    "software",
+    "up",
+    "including"
 ]
 
 PHRASINGS = [
     "HTTP server",
-    "FTP server"
+    "FTP server",
+    "binary in"
 ]
 
 

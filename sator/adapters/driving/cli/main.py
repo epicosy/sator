@@ -7,6 +7,8 @@ from .controllers.analysis import Analyze
 from .controllers.extraction import Extract
 from .controllers.resolution import Resolve
 from .controllers.annotation import Annotate
+
+from sator_app.services.processing.product import ProductProcessingService
 from sator_app.services.processing.vulnerability import VulnerabilityProcessingService
 from .bootstrap import (create_resolution_builder, create_extraction_builder, create_annotation_builder,
                         create_analysis_builder)
@@ -74,6 +76,13 @@ def main():
             app.analysis_builder.create_vulnerability_attributes_analysis(),
             app.resolution_builder.create_vulnerability_metadata_resolution(),
             app.resolution_builder.create_vulnerability_references_resolution()
+        )
+
+        app.product_processing = ProductProcessingService(
+            app.annotation_builder.create_product_attributes_annotation(),
+            app.extraction_builder.create_product_attributes_extraction(),
+            app.analysis_builder.create_product_attributes_analysis(),
+            app.resolution_builder.create_product_references_resolution()
         )
 
         try:

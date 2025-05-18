@@ -35,9 +35,9 @@ dependencies = [
     "cpeparser>=0.0.2",
     "cpelib>=0.2.0",
     "code_diff>=0.1.3",
-    "sator-core>=0.0.4",
-    "sator-app>=0.0.3",
-    "cve-driller>=0.0.1",
+    "sator-core>=0.0.8",
+    "sator-app>=0.0.7",
+    "cve-driller>=0.0.4",
 ]
 
 [project.optional-dependencies]

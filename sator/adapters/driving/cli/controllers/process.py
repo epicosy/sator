@@ -20,5 +20,19 @@ class Process(Controller):
     )
     def vulnerability(self):
         locator = self.app.vulnerability_processing.process_vulnerability(self.app.pargs.vulnerability_id)
+        print(locator)
 
+
+    @ex(
+        help='Process the provided product (vendor/name) and finds its source-code.',
+        arguments=[
+            (['-v', '--vendor'], {'help': 'product vendor', 'type': str, 'required': True}),
+            (['-n', '--name'], {'help': 'product name', 'type': str, 'required': True})
+        ]
+    )
+    def product(self):
+        locator = self.app.product_processing.process_product(
+            vendor=self.app.pargs.vendor,
+            name=self.app.pargs.name
+        )
         print(locator)

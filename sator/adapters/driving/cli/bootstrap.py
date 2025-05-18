@@ -10,6 +10,7 @@ from sator.adapters.driven.repositories.product.cpe import CPEDictionary
 from sator.adapters.driven.repositories.vulnerability.nvd import NVDVulnerabilityRepository
 
 from sator.adapters.driven.extractors.attributes.patch.regex_based import RegexPatchAttributesExtractor
+from sator.adapters.driven.extractors.attributes.product.keyword_based import KeywordBasedProductAttributesExtractor
 from sator.adapters.driven.extractors.attributes.vulnerability.regex_based import RegexVulnerabilityAttributesExtractor
 
 from sator.adapters.driven.classifiers.diff.rule_based import RuleBasedDiffClassifier
@@ -56,6 +57,7 @@ def create_extraction_builder(config: ConfigHandler) -> ExtractionBuilder:
     return ExtractionBuilder(
         patch_attrs_extractor=RegexPatchAttributesExtractor(),
         vuln_attrs_extractor=RegexVulnerabilityAttributesExtractor(),
+        product_attrs_extractor=KeywordBasedProductAttributesExtractor(),
         storage_port=JsonPersistence(persistence['json']['path']),
         oss_gateway=GithubGateway(gateways['github']["login"])
     )
