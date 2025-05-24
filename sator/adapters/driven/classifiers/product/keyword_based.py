@@ -1,4 +1,4 @@
-from sator_core.models.product import Product
+from sator_core.models.product import Product, ProductAttributes
 from sator_core.models.enums import ProductType, ProductPart, LicenseType
 from sator_core.ports.driven.classifiers.product import ProductClassifierPort
 
@@ -41,7 +41,7 @@ class KeywordBasedProductClassifier(ProductClassifierPort):
         # TODO: Implement this method
         return ProductPart.UNDEFINED
 
-    def classify_product_type(self, product_name: str, part: ProductPart) -> ProductType:
+    def classify_product_type(self, product_attributes: ProductAttributes, part: ProductPart) -> ProductType:
         """
             Classify the product by type based on keywords in the product name. Product must have a part.
 
@@ -56,7 +56,7 @@ class KeywordBasedProductClassifier(ProductClassifierPort):
         if part is None:
             raise ValueError("Product part must be provided to classify the product by type.")
 
-        name = product_name.replace('\\/', '_').replace('-', '_')
+        name = product_attributes.name.replace('\\/', '_').replace('-', '_')
         tokens = name.split('_')
 
         if part == ProductPart.UNDEFINED:

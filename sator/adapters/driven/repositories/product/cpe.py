@@ -211,20 +211,21 @@ class CPEDictionary(ProductRepositoryPort):
         return [cpe_item.cpe.version for cpe_item in cpe_dict.items.values() if cpe_item.cpe.version not in WILDCARDS]
 
     def get_product_references(self, product: Product) -> ProductReferences:
+        product_references = ProductReferences(
+            product_id=product.id,
+        )
         cpe_dict = self.loader.load(vendor_name=product.vendor, product_name=product.name)
-        if not cpe_dict:
-            return ProductReferences()  # Early return if no data is loaded
 
-        product_references = ProductReferences()
+        if not cpe_dict:
+            return product_references  # Early return if no data is loaded
+
         seen_refs = set()
 
         # Define a mapping of tag types to product reference categories
         tag_to_category = {
-            "Project": product_references.product,
-            "Product": product_references.product,
-            "Advisory": product_references.advisories,
-            "Version": product_references.releases,
-            "Website": product_references.website,
+            "Repositories": product_references.repositories,
+            "PURLs": product_references.purls,
+            "Homepage": product_references.homepage,
         }
 
         for cpe_item in cpe_dict.items.values():
@@ -233,6 +234,12 @@ class CPEDictionary(ProductRepositoryPort):
                     continue  # Skip duplicates
 
                 seen_refs.add(reference.href)
+
+                if 'github.com' in reference.href:
+                    reference.tags.append("Repositories")
+
+                if reference.href.startswith("pkg:"):
+                    reference.tags.append("PURLs")
 
                 intersection = set(reference.tags).intersection(tag_to_category.keys())
 

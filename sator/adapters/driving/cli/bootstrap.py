@@ -7,6 +7,7 @@ from sator.adapters.driven.persistence.json import JsonPersistence
 
 from sator.adapters.driven.gateways.oss.github import GithubGateway
 from sator.adapters.driven.repositories.product.cpe import CPEDictionary
+from sator.adapters.driven.repositories.oss.github import GithubRepository
 from sator.adapters.driven.repositories.vulnerability.nvd import NVDVulnerabilityRepository
 
 from sator.adapters.driven.extractors.attributes.patch.regex_based import RegexPatchAttributesExtractor
@@ -30,6 +31,10 @@ PROD_REPOS_MAPPING = {
     "cpe": CPEDictionary
 }
 
+PATCH_REPOS_MAPPING = {
+    "oss": GithubRepository
+}
+
 
 def create_resolution_builder(config: ConfigHandler) -> ResolutionBuilder:
     gateways = config.get('sator', 'gateways')
@@ -43,6 +48,9 @@ def create_resolution_builder(config: ConfigHandler) -> ResolutionBuilder:
         ],
         prod_repos=[
             PROD_REPOS_MAPPING[name](**values) for name, values in repositories.items() if name in PROD_REPOS_MAPPING
+        ],
+        oss_repos=[
+            PATCH_REPOS_MAPPING[name](**values) for name, values in repositories.items() if name in PATCH_REPOS_MAPPING
         ],
         storage_port=JsonPersistence(persistence['json']['path']),
         oss_gateway=GithubGateway(gateways['github']["login"])

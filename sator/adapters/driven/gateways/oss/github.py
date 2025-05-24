@@ -1,4 +1,5 @@
 from rapidfuzz import fuzz
+from pydantic import AnyUrl
 from datetime import datetime
 from typing import Tuple, List
 
@@ -11,6 +12,8 @@ from gitlib.models.url.commit import GithubCommitUrl
 from gitlib.parsers.url.base import GithubUrlParser
 
 from sator_core.models.oss.diff import Diff
+from sator_core.models.product import ProductLocator, ProductAttributes
+
 from sator_core.ports.driven.gateways.oss import OSSGatewayPort
 from sator.adapters.driven.repositories.oss.mappers import GithubDiffMapper
 
@@ -18,6 +21,33 @@ from sator.adapters.driven.repositories.oss.mappers import GithubDiffMapper
 class GithubGateway(OSSGatewayPort):
     def __init__(self, login: str):
         self.github_client = GitClient(login)
+
+    def get_product_locator_from_urls(
+            self, product_id: str, urls: List[AnyUrl], product_attributes: ProductAttributes
+    ) -> ProductLocator | None:
+        for url in urls:
+            # Convert AnyUrl to string
+            url_str = str(url)
+
+            # Check if this is a GitHub URL
+            if "github.com" in url_str:
+                github_url_parser = GithubUrlParser(url_str)
+                github_object = github_url_parser()
+
+                if github_object:
+                    # Check if the repository is available
+                    owner_id, repo_id, _ = self.get_ids_from_url(url_str)
+
+                    if repo_id:
+                        # Create and return the ProductLocator
+                        return ProductLocator(
+                            product_id=product_id,
+                            platform="github",
+                            repository_path=str(github_object),
+                        )
+
+        # If no valid GitHub repository URL is found, return None
+        return None
 
     def is_security_diff_message(self, message: str) -> bool | None:
         commit_msg = [line.lower() for line in message.split('\n')]
