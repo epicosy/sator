@@ -9,9 +9,11 @@ from sator_core.ports.driven.classifiers.diff import DiffClassifierPort
 
 LANG_MAP = {
     ".c": "c",
+    ".cpp": "cpp",
     ".py": "python",
     ".java": "java",
     ".js": "javascript",
+    ".h": "c",
 }
 
 
@@ -21,6 +23,8 @@ NTL_STMT_PLH = {
     ".js": ";",
     ".java": "{}",
     ".c": "{}",
+    ".cpp": "{}",
+    ".h": "{}",
 }
 
 ADDITION_MAP = {
@@ -56,11 +60,17 @@ def get_diff_hunk_annotation(order: int, new_code: str, change_type: DiffChangeT
 
 def analyze_hunk(order: int, hunk, file_suffix: str) -> DiffHunkDescriptor:
     """Analyzes a single hunk and returns its annotation."""
-    clean_old_code, clean_new_code = hunk.old_code.strip(), hunk.new_code.strip()
+    # TODO: check programming language before removing indentation
+    clean_old_code = '\n'.join([line.strip() for line in hunk.old_code.splitlines()])
+    clean_new_code = '\n'.join([line.strip() for line in hunk.new_code.splitlines()])
 
     if not clean_old_code and not clean_new_code:
         return DiffHunkDescriptor(order=order, change_type=DiffChangeType.MODIFICATION,
                                   content_type=DiffContentType.WHITESPACE)
+
+    if clean_old_code == clean_new_code:
+        return DiffHunkDescriptor(order=order, change_type=DiffChangeType.MODIFICATION,
+                                  content_type=DiffContentType.UNDEFINED)
 
     if not clean_old_code:
         return get_diff_hunk_annotation(order, hunk.new_code, DiffChangeType.ADDITION, file_suffix)
@@ -69,11 +79,12 @@ def analyze_hunk(order: int, hunk, file_suffix: str) -> DiffHunkDescriptor:
         return DiffHunkDescriptor(order=order, change_type=DiffChangeType.DELETION,
                                   content_type=DiffContentType.UNDEFINED)
 
-    return get_diff_hunk_annotation(order, hunk.new_code, DiffChangeType.MODIFICATION, file_suffix, hunk.old_code)
+    return get_diff_hunk_annotation(order, clean_new_code, DiffChangeType.MODIFICATION, file_suffix, clean_old_code)
 
 
 class RuleBasedDiffClassifier(DiffClassifierPort):
     def classify_diff(self, diff) -> DiffDescriptor | None:
+        print("Classifying diff using RuleBasedDiffClassifier...")
         patches = []
 
         for patch in diff.patches:
@@ -85,5 +96,6 @@ class RuleBasedDiffClassifier(DiffClassifierPort):
             hunks = [analyze_hunk(i, hunk, path.suffix) for i, hunk in enumerate(patch.hunks)]
             patches.append(DiffPatchDescriptor(new_file=patch.new_file, hunks=hunks))
 
-        return DiffDescriptor(patches=patches) if patches else None
+        result = DiffDescriptor(patches=patches) if patches else None
 
+        return result

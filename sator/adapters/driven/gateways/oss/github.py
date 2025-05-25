@@ -12,7 +12,9 @@ from gitlib.models.url.commit import GithubCommitUrl
 from gitlib.parsers.url.base import GithubUrlParser
 
 from sator_core.models.oss.diff import Diff
+from sator_core.models.patch.references import PatchReferences
 from sator_core.models.product import ProductLocator, ProductAttributes
+from sator_core.models.vulnerability.locator import VulnerabilityLocator
 
 from sator_core.ports.driven.gateways.oss import OSSGatewayPort
 from sator.adapters.driven.repositories.oss.mappers import GithubDiffMapper
@@ -84,6 +86,19 @@ class GithubGateway(OSSGatewayPort):
             return [commit.sha for commit in commits]
 
         return []
+
+    def search_patch_references(
+            self, vulnerability_id: str, vulnerability_locator: VulnerabilityLocator, product_locator: ProductLocator
+    ) -> PatchReferences | None:
+        """
+        Search for patch references based on the vulnerability and product locators.
+
+        :param vulnerability_id: The ID of the vulnerability.
+        :param vulnerability_locator: The locator for the vulnerability.
+        :param product_locator: The locator for the product.
+        :return: PatchReferences object or None if not found.
+        """
+        return None
 
     def search_repo(self, owner_name: str, repository_name: str, n_org: int = 10, n_repos: int = 10) \
             -> Tuple[int | None, int | None]:
@@ -163,7 +178,9 @@ class GithubGateway(OSSGatewayPort):
             diff = commit.get_diff()
 
             if commit.parents:
-                return GithubDiffMapper.map_diff(repo_id, commit_sha, commit.parents[0].sha, diff)
+                return GithubDiffMapper.map_diff(
+                    repo_id, commit_sha, commit.parents[0].sha, diff, message=commit.message, date=commit.date,
+                )
 
         return None
 
@@ -182,3 +199,45 @@ class GithubGateway(OSSGatewayPort):
                 return git_repo.owner.id, git_repo.id, None
 
         return None, None, None
+
+    def get_ids_from_repo_path(self, platform: str, repo_path: str) -> Tuple[int | None, int | None]:
+        """
+        Get the owner and repository IDs from the repository path.
+
+        :param platform: The platform of the repository (e.g., 'GitHub').
+        :param repo_path: The path to the repository.
+        :return: A tuple containing the owner ID and repository ID.
+        """
+        print("###########################")
+        if platform.lower() != "github":
+            return None, None
+
+        owner, project = repo_path.split('/')
+
+        git_repo = self.github_client.get_repo(owner, project)
+
+        if git_repo:
+            return git_repo.owner.id, git_repo.id
+
+        return None, None
+
+    def get_repo_submodules(self, platform: str, repo_path: str) -> List[str]:
+        """
+        Get the submodules of a repository.
+
+        :param platform: The platform of the repository (e.g., 'GitHub').
+        :param repo_path: The path to the repository.
+        :return: A list of submodule paths.
+        """
+        if platform.lower() != "github":
+            return []
+
+        owner, project = repo_path.split('/')
+
+        git_repo = self.github_client.get_repo(owner, project)
+        submodules = git_repo.get_submodules()
+
+        if submodules:
+            return [submodule.repo_path for submodule in submodules.elements if submodule.repo_path]
+
+        return []

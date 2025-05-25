@@ -40,11 +40,12 @@ class Process(Controller):
     @ex(
         help='Process the patch for the provided vulnerability (CVE).',
         arguments=[
-            (['-vid', '--vulnerability_id'], {'help': 'vulnerability id', 'type': str, 'required': True})
+            (['-vid', '--vulnerability_id'], {'help': 'vulnerability id', 'type': str, 'required': True}),
+            (['-pid', '--product_id'], {'help': 'product id', 'type': str, 'required': True}),
         ]
     )
     def patch(self):
         locator = self.app.patch_processing.process_patch(
-            vulnerability_id=self.app.pargs.vulnerability_id
+            vulnerability_id=self.app.pargs.vulnerability_id, product_id=self.app.pargs.product_id
         )
         print(locator)

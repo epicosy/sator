@@ -35,6 +35,10 @@ PATCH_REPOS_MAPPING = {
     "oss": GithubRepository
 }
 
+OSS_GATEWAY_MAPPING = {
+    "github": GithubGateway
+}
+
 
 def create_resolution_builder(config: ConfigHandler) -> ResolutionBuilder:
     gateways = config.get('sator', 'gateways')
@@ -53,7 +57,9 @@ def create_resolution_builder(config: ConfigHandler) -> ResolutionBuilder:
             PATCH_REPOS_MAPPING[name](**values) for name, values in repositories.items() if name in PATCH_REPOS_MAPPING
         ],
         storage_port=JsonPersistence(persistence['json']['path']),
-        oss_gateway=GithubGateway(gateways['github']["login"])
+        oss_gateways=[
+            OSS_GATEWAY_MAPPING[name](**values) for name, values in gateways.items() if name in OSS_GATEWAY_MAPPING
+        ]
     )
 
 
@@ -67,7 +73,9 @@ def create_extraction_builder(config: ConfigHandler) -> ExtractionBuilder:
         vuln_attrs_extractor=RegexVulnerabilityAttributesExtractor(),
         product_attrs_extractor=KeywordBasedProductAttributesExtractor(),
         storage_port=JsonPersistence(persistence['json']['path']),
-        oss_gateway=GithubGateway(gateways['github']["login"])
+        oss_gateways=[
+            OSS_GATEWAY_MAPPING[name](**values) for name, values in gateways.items() if name in OSS_GATEWAY_MAPPING
+        ]
     )
 
 
@@ -83,7 +91,9 @@ def create_annotation_builder(config: ConfigHandler) -> AnnotationBuilder:
         impact_classifier=RegexBasedImpactClassifier(),
         diff_classifier=RuleBasedDiffClassifier(),
         storage_port=JsonPersistence(persistence['json']['path']),
-        oss_gateway=GithubGateway(gateways['github']["login"])
+        oss_gateways=[
+            OSS_GATEWAY_MAPPING[name](**values) for name, values in gateways.items() if name in OSS_GATEWAY_MAPPING
+        ]
     )
 
 
@@ -100,5 +110,7 @@ def create_analysis_builder(config: ConfigHandler) -> AnalysisBuilder:
         diff_classifier=RuleBasedDiffClassifier(),
         patch_attrs_analyzer=ScorePatchAttributesAnalyzer(),
         storage_port=JsonPersistence(persistence['json']['path']),
-        oss_gateway=GithubGateway(gateways['github']["login"])
+        oss_gateways=[
+            OSS_GATEWAY_MAPPING[name](**values) for name, values in gateways.items() if name in OSS_GATEWAY_MAPPING
+        ]
     )

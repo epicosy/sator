@@ -12,6 +12,7 @@ CHANGE_TYPE_SCORE = {
 }
 
 CONTENT_TYPE_SCORE = {
+    DiffContentType.UNDEFINED: 0,
     DiffContentType.COMMENT: 0,
     DiffContentType.WHITESPACE: 0,
     DiffContentType.BIN_EXPR_ADD: 1,

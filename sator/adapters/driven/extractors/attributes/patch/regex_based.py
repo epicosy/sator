@@ -11,15 +11,15 @@ class RegexPatchAttributesExtractor(PatchAttributesExtractorPort):
         self.message = None
         self.patch_attributes = None
 
-    def extract_patch_attributes(self, diff_message: str, diff: Diff) -> PatchAttributes | None:
-        commit_msg = [line.lower() for line in diff_message.split('\n')]
+    def extract_patch_attributes(self, vulnerability_id, diff: Diff) -> PatchAttributes | None:
+        commit_msg = [line.lower() for line in diff.message.split('\n')]
 
         if not commit_msg:
             return None
 
         self.message = Message(commit_msg)
         self.message.get_sections()
-        self.patch_attributes = PatchAttributes(diff=diff)
+        self.patch_attributes = PatchAttributes(diff=diff, vulnerability_id=vulnerability_id)
 
         self._process_section(Header)
         self._process_section(Body)

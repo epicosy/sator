@@ -31,12 +31,12 @@ dependencies = [
     "requests>=2.32.2",
     "tqdm>=4.67.1",
     "nvdutils==3.2.0",
-    "github_lib==0.7.2",
+    "github_lib==0.8.0",
     "cpeparser>=0.0.2",
     "cpelib>=0.2.0",
     "code_diff>=0.1.3",
-    "sator-core>=0.0.11",
-    "sator-app>=0.0.11",
+    "sator-core>=0.0.16",
+    "sator-app>=0.0.14",
     "cve-driller>=0.0.4",
 ]
 
